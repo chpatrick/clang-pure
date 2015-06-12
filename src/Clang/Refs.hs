@@ -3,7 +3,7 @@
 module Clang.Refs
   ( Ref(deref), RefType, uderef, Finalizer
   , Root(), root
-  , Child(), child
+  , Child(), child, parent
   ) where
 
 import Control.Monad
@@ -31,9 +31,12 @@ type Finalizer = IO ()
 root :: Finalizer -> Ptr a -> IO (Root a)
 root ffin ptr = do 
   refs <- newTVarIO 0
-  let fin = void $ forkIO $ do
-        ensureZero refs
-        ffin
+  let
+    fin = readTVarIO refs >>= \case
+      0 -> ffin
+      _ -> void $ forkIO $ do
+             ensureZero refs
+             ffin
   fptr <- newForeignPtr ptr fin
   return $ Root $ Node fptr refs
 
@@ -72,10 +75,13 @@ child p f =
   deref p $ \pptr -> do
     ( ffin, ptr ) <- f pptr
     refs <- newTVarIO 0
-    let fin = void $ forkIO $ do
-          ensureZero refs
-          ffin
-          atomically $ decCount p
+    let
+      fin = readTVarIO refs >>= \case
+        0 -> ffin
+        _ -> void $ forkIO $ do
+               ensureZero refs
+               ffin
+               atomically $ decCount p
     atomically $ incCount p
     fptr <- newForeignPtr ptr fin
     return $ Child p $ Node fptr refs

@@ -17,3 +17,5 @@ newtype TranslationUnit = TranslationUnitRef (Child ClangIndex CXTranslationUnit
 data CXCursor
 type instance RefType Cursor = CXCursor
 newtype Cursor = Cursor (Child TranslationUnit CXCursor) deriving Ref
+
+data CXString
