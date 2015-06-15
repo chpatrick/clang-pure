@@ -1,90 +1,96 @@
-{-# LANGUAGE TypeFamilies #-}
-
 module Clang.Refs
-  ( Ref(deref), RefType, uderef, Finalizer
+  ( Finalizer
   , Root(), root
   , Child(), child, parent
+  , Ref(deref), RefType, ParentType, uderef
   ) where
 
+import Control.Concurrent.MVar
+import Control.Lens
 import Control.Monad
-import Control.Concurrent (forkIO)
-import Control.Concurrent.STM
-import Foreign hiding (void, newForeignPtr, addForeignPtrFinalizer)
+import Foreign hiding (newForeignPtr)
 import Foreign.Concurrent
-import System.IO.Unsafe (unsafePerformIO)
-
--- A reference-counted foreign reference. It can be derefenced (like ForeignPtr) and
--- sub-references can be created, ensuring that the finalizer is not called before
--- the sub-references get collected.
-type family RefType r
-class Ref r where
-  incCount :: r -> STM ()
-  decCount :: r -> STM ()
-  deref :: r -> (Ptr (RefType r) -> IO b) -> IO b
-
-type RefCount = TVar Int
-data Node a = Node (ForeignPtr a) RefCount
-newtype Root a = Root { rootNode :: Node a }
+import System.IO.Unsafe
 
 type Finalizer = IO ()
 
+data NodeState = NodeState
+  { _collected :: !Bool
+  , _refCount :: !Int
+  }
+
+makeLenses ''NodeState
+
+data Node a = Node
+  { nodePtr :: ForeignPtr a
+  , nodeState :: MVar NodeState
+  , trueFinalizer :: Finalizer
+  }
+
+newtype Root a = Root (Node a)
+
+data Child p a = Child p (Node a)
+
 root :: Finalizer -> Ptr a -> IO (Root a)
-root ffin ptr = do 
-  refs <- newTVarIO 0
-  let
-    fin = readTVarIO refs >>= \case
-      0 -> ffin
-      _ -> void $ forkIO $ do
-             ensureZero refs
-             ffin
-  fptr <- newForeignPtr ptr fin
-  return $ Root $ Node fptr refs
-
-ensureZero :: RefCount -> IO ()
-ensureZero rc = atomically $ do
-  count <- readTVar rc
-  guard (count == 0)
-
-incCountNode :: Node a -> STM ()
-incCountNode (Node _ rc) = modifyTVar rc succ
-
-decCountNode :: Node a -> STM ()
-decCountNode (Node _ rc) = modifyTVar rc pred
-
-derefNode :: Node a -> (Ptr a -> IO b) -> IO b
-derefNode (Node fp _) = withForeignPtr fp
-
-type instance RefType (Root a) = a
-instance Ref (Root a) where
-  incCount = incCountNode . rootNode
-  decCount = decCountNode . rootNode
-  deref = derefNode . rootNode
-
-data Child p a = Child { parent :: p, childNode :: Node a }
-
-type instance RefType (Child p a) = a
-instance Ref p => Ref (Child p a) where
-  incCount = incCountNode . childNode
-  decCount = decCountNode . childNode
-  deref c f
-    = deref (parent c) $ \_ ->
-      derefNode (childNode c) f
+root trueFinalizer ptr = do
+  nodeState <- newMVar $ NodeState False 0
+  nodePtr <- newForeignPtr ptr $
+    modifyMVar_ nodeState $ \ns -> do
+      when (view refCount ns == 0) trueFinalizer
+      return $ ns & collected .~ True
+  return $ Root $ Node nodePtr nodeState trueFinalizer
 
 child :: Ref p => p -> (Ptr (RefType p) -> IO ( Finalizer, Ptr a )) -> IO (Child p a)
 child p f =
   deref p $ \pptr -> do
-    ( ffin, ptr ) <- f pptr
-    refs <- newTVarIO 0
-    let
-      fin = readTVarIO refs >>= \case
-        0 -> ffin
-        _ -> void $ forkIO $ do
-               ensureZero refs
-               ffin
-               atomically $ decCount p
-    atomically $ incCount p
-    fptr <- newForeignPtr ptr fin
-    return $ Child p $ Node fptr refs
+    ( fin, ptr ) <- f pptr
+    let parentNode = node p
+    childNodeState <- newMVar $ NodeState False 0
+    modifyMVar_ (nodeState parentNode) (return . (refCount +~ 1))
+    nodePtr <- newForeignPtr ptr $
+      modifyMVar_ childNodeState $ \ns -> do
+        -- No sub-references, finalize immediately. Otherwise,
+        -- finalization will happen when the last sub-reference is finalized.
+        when (view refCount ns == 0) $ do
+          fin
+          (decCount $! nodeState parentNode) $! trueFinalizer parentNode
+        return $ ns & collected .~ True
+    return $ Child p $ Node
+      { nodePtr
+      , nodeState = childNodeState
+      , trueFinalizer = fin
+      }
 
-uderef :: Ref r => r -> (Ptr (RefType r) -> IO b) -> b
+decCount :: MVar NodeState -> Finalizer -> IO ()
+decCount parentState parentFin =
+  modifyMVar_ parentState $ \case
+    NodeState True 1 -> do
+      parentFin
+      return $ NodeState True 0
+    ns -> return $ ns & refCount -~ 1
+
+type family RefType r
+type family ParentType r
+class Ref r where
+  deref :: r -> (Ptr (RefType r) -> IO a) -> IO a
+  node :: r -> Node (RefType r)
+  parent :: r -> ParentType r
+
+type instance RefType (Root a) = a
+type instance ParentType (Root a) = ()
+instance Ref (Root a) where
+  deref (Root n) = withForeignPtr $ nodePtr n
+  node (Root n) = n
+  parent _ = ()
+
+type instance RefType (Child p a) = a
+type instance ParentType (Child p a) = p
+instance Ref p => Ref (Child p a) where
+  deref (Child p n) f =
+    deref p $ \_ ->
+      withForeignPtr (nodePtr n) f
+  node (Child _ n) = n
+  parent (Child p _) = p
+
+uderef :: Ref r => r -> (Ptr (RefType r) -> IO a) -> a
 uderef r f = unsafePerformIO $ deref r f

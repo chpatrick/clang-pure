@@ -13,9 +13,14 @@ build-type:            Simple
 cabal-version:         >=1.10
 
 library
-  exposed-modules:     Clang
-  other-modules:       Clang.Refs, Clang.Types, Clang.FFI
-  extensions:          TypeFamilies, GeneralizedNewtypeDeriving, TemplateHaskell, QuasiQuotes, OverloadedStrings, LambdaCase
+  exposed-modules:     Clang, Clang.Types, Clang.FFI, Clang.Refs
+  extensions:          TypeFamilies,
+                       GeneralizedNewtypeDeriving,
+                       TemplateHaskell,
+                       QuasiQuotes,
+                       OverloadedStrings,
+                       LambdaCase,
+                       NamedFieldPuns
   build-depends:       base >=4.8 && <4.9,
                        lens,
                        inline-c >= 0.5.3.2,
@@ -35,6 +40,7 @@ library
   extra-libraries:     clang-3.4
   ghc-options:         -Wall
 
--- executable test
---  main-is: test.hs
---  build-depends: base >= 4.8, clang-lens, containers, lens, inline-c >= 0.5.3.2, template-haskell >= 2.10, vector >= 0.10.12, bytestring >= 0.10.6
+executable test
+  hs-source-dirs: examples
+  main-is: test.hs
+  build-depends: base >= 4.8, clang-lens, lens

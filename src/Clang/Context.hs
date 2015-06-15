@@ -15,6 +15,9 @@ clangTypesTable = M.fromList
   , (C.TypeName "CXTranslationUnit", [t| CXTranslationUnit |])
   , (C.TypeName "CXCursor", [t| CXCursor |])
   , (C.TypeName "CXString", [t| CXString |])
+  , (C.TypeName "CXSourceRange", [t| CXSourceRange |])
+  , (C.TypeName "CXSourceLocation", [t| CXSourceLocation |])
+  , (C.TypeName "CXFile", [t| CXFile |])
   ]
 
 clangCtx :: C.Context
