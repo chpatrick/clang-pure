@@ -15,13 +15,13 @@ import Foreign.C
 import qualified Language.C.Inline as C
 import qualified Language.C.Inline.Unsafe as CU
 import System.IO.Unsafe
-import Text.RawString.QQ
+import qualified Text.RawString.QQ as R
 
 C.context clangCtx
 C.include "stdlib.h"
 C.include "clang-c/Index.h"
 
-C.verbatim [r|
+C.verbatim [R.r|
   typedef void (*haskell_visitor)(CXCursor*);
 
   // Traverse children using a haskell_visitor passed in as client_data.
@@ -102,20 +102,19 @@ cursorChildren f c = uderef c $ \cp -> do
     } |]
   readIORef fRef
 
-cursorSpelling :: Cursor -> ByteString
-cursorSpelling c = uderef c $ \cp -> do
-  [CU.block| CXString* { ALLOC(CXString,
-    clang_getCursorSpelling(*$(CXCursor *cp))
-    )} |] >>= processCXString
-
--- | Marshal a CXString pointer to a ByteString and free it.
-processCXString :: Ptr CXString -> IO ByteString
-processCXString cxsp = do
-  csp <- [CU.exp| const char * { clang_getCString(*$(CXString *cxsp)) } |]
-  s <- BS.packCString csp
+withCXString :: (Ptr CXString -> IO ()) -> IO ByteString
+withCXString f = allocaBytes cxStringSize $ \cxsp -> do
+  f cxsp
+  cs <- [CU.exp| const char * { clang_getCString(*$(CXString *cxsp)) } |]
+  s <- BS.packCString cs
   [CU.exp| void { clang_disposeString(*$(CXString *cxsp)) } |]
-  free cxsp
   return s
+
+cursorSpelling :: Cursor -> ByteString
+cursorSpelling c = uderef c $ \cp -> withCXString $ \cxsp ->
+  [CU.block| void {
+    *$(CXString *cxsp) = clang_getCursorSpelling(*$(CXCursor *cp));
+    } |]
 
 cursorExtent :: Cursor -> Maybe SourceRange
 cursorExtent c = uderef c $ \cp -> do
@@ -170,8 +169,33 @@ spellingLocation sl = uderef sl $ \slp -> do
     , offset = fromIntegral o
     }
 
+getFile :: TranslationUnit -> FilePath -> Maybe File
+getFile tu p = uderef tu $ \tup -> withCString p $ \fn -> do
+  fp <- [CU.exp| CXFile {
+    clang_getFile($(CXTranslationUnit tup), $(const char *fn))
+    } |]
+  if fp == nullPtr
+    then return Nothing
+    else (Just . File) <$> child tu (\_ -> return ( return (), fp ))
+
 fileName :: File -> ByteString
-fileName f = uderef f $ \fp -> do
-  [CU.block| CXString* { ALLOC(CXString,
-    clang_getFileName($(CXFile fp))
-    )} |] >>= processCXString
+fileName f = uderef f $ \fp -> withCXString $ \cxsp ->
+  [CU.block| void {
+    *$(CXString *cxsp) = clang_getFileName($(CXFile fp));
+    } |]
+
+instance Eq Cursor where
+  (==) = defaultEq $ \lp rp ->
+    [CU.exp| int { clang_equalCursors(*$(CXCursor *lp), *$(CXCursor *rp)) } |]
+
+instance Eq SourceRange where
+  (==) = defaultEq $ \lp rp ->
+    [CU.exp| int { clang_equalRanges(*$(CXSourceRange *lp), *$(CXSourceRange *rp)) } |]
+
+instance Eq SourceLocation where
+  (==) = defaultEq $ \lp rp ->
+    [CU.exp| int { clang_equalLocations(*$(CXSourceLocation *lp), *$(CXSourceLocation *rp)) } |]
+
+defaultEq :: (Ref r, RefType r ~ a) => (Ptr a -> Ptr a -> IO CInt) -> r -> r -> Bool
+defaultEq ne l r
+  = node l == node r || uderef2 l r ne /= 0

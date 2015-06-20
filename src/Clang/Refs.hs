@@ -1,8 +1,10 @@
 module Clang.Refs
   ( Finalizer
+  , Node(..)
   , Root(), root
   , Child(), child, parent
-  , Ref(deref), RefType, ParentType, uderef
+  , Ref(deref, node), RefType, ParentType
+  , uderef, uderef2
   ) where
 
 import Control.Concurrent.MVar
@@ -27,9 +29,22 @@ data Node a = Node
   , trueFinalizer :: Finalizer
   }
 
+instance Eq (Node a) where
+  n == n' = nodePtr n == nodePtr n'
+
+instance Ord (Node a) where
+  n `compare` n' = nodePtr n `compare` nodePtr n'
+
 newtype Root a = Root (Node a)
+  deriving (Eq, Ord)
 
 data Child p a = Child p (Node a)
+
+instance Eq (Child p a) where
+  Child _ n == Child _ n' = n == n'
+
+instance Ord (Child p a) where
+  Child _ n `compare` Child _ n' = n `compare` n'
 
 root :: Finalizer -> Ptr a -> IO (Root a)
 root trueFinalizer ptr = do
@@ -94,3 +109,10 @@ instance Ref p => Ref (Child p a) where
 
 uderef :: Ref r => r -> (Ptr (RefType r) -> IO a) -> a
 uderef r f = unsafePerformIO $ deref r f
+
+uderef2 :: (Ref r, Ref r') => r -> r' -> (Ptr (RefType r) -> Ptr (RefType r') -> IO a) -> a
+uderef2 r r' f =
+  unsafePerformIO $
+    deref r $ \p ->
+      deref r' $ \p' ->
+        f p p'

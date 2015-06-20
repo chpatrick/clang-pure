@@ -1,5 +1,5 @@
-#include "stdio.h"
+#include "stdlib.h"
 
-int main(int argc, char **argv) {
-  puts("Hello world!");
+void foo() {
+  printf("%d", (2 + 2) + (2 * 2));
 }
