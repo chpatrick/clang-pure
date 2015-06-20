@@ -5,8 +5,10 @@ import qualified Data.ByteString as BS
 import Clang.Context
 import Clang.Refs
 import Clang.Types
+import Control.Exception
 import Control.Lens
 import Control.Lens.Internal (noEffect)
+import Control.Monad
 import Data.Foldable
 import Data.IORef
 import qualified Data.Vector.Storable as VS
@@ -53,20 +55,29 @@ createIndex = do
 foreign import ccall "clang_disposeTranslationUnit"
   clang_disposeTranslationUnit :: Ptr CXTranslationUnitImpl -> Finalizer
 
+newtype ClangException = ClangException CInt
+  deriving Show
+
+instance Exception ClangException
+
 parseTranslationUnit :: ClangIndex -> String -> [ String ] -> IO TranslationUnit
 parseTranslationUnit idx path args = do
   tun <- child idx $ \idxp -> 
     withCString path $ \cPath -> do
       cArgs <- VS.fromList <$> traverse newCString args
-      tup <- [CU.exp| CXTranslationUnit {
-        clang_parseTranslationUnit(
+      ( tup, res ) <- C.withPtr $ \tupp -> [CU.exp| int {
+        clang_parseTranslationUnit2(
           $(CXIndex idxp),
           $(char* cPath),
           $vec-ptr:(const char * const * cArgs), $vec-len:cArgs,
           NULL, 0,
-          0)
+          0,
+          $(CXTranslationUnit *tupp)
+          )
         } |]
       traverse_ free $ VS.toList cArgs
+      when (res /= 0) $
+        throwIO (ClangException res)
       return ( clang_disposeTranslationUnit tup, tup )
   return $ TranslationUnitRef tun
 

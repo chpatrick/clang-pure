@@ -37,8 +37,8 @@ library
   c-sources:           src/Clang/FFI.c
   include-dirs:        /usr/lib/llvm-3.5/include
   cc-options:          -Wall
-  ld-options:          -lclang-3.4
-  extra-libraries:     clang-3.4
+  ld-options:          -lclang-3.5
+  extra-libraries:     clang-3.5
   ghc-options:         -Wall
 
 executable test
