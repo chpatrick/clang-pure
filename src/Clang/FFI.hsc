@@ -14,8 +14,9 @@ import Data.IORef
 import qualified Data.Vector.Storable as VS
 import Foreign
 import Foreign.C
-import qualified Language.C.Inline as C
-import qualified Language.C.Inline.Unsafe as CU
+import qualified Language.C.Inline as C hiding (exp, block)
+import qualified Language.C.Inline as CSafe
+import qualified Language.C.Inline.Unsafe as C
 import System.IO.Unsafe
 
 C.context clangCtx
@@ -29,7 +30,7 @@ foreign import ccall "clang_disposeIndex"
 
 createIndex :: IO ClangIndex
 createIndex = do
-  idxp <- [CU.exp| CXIndex { clang_createIndex(0, 1) } |]
+  idxp <- [C.exp| CXIndex { clang_createIndex(0, 1) } |]
   ClangIndex <$> root (clang_disposeIndex idxp) idxp
 
 foreign import ccall "clang_disposeTranslationUnit"
@@ -59,7 +60,7 @@ parseTranslationUnit idx path args = do
   tun <- child idx $ \idxp -> 
     withCString path $ \cPath -> do
       cArgs <- VS.fromList <$> traverse newCString args
-      ( tup, cres ) <- C.withPtr $ \tupp -> [CU.exp| int {
+      ( tup, cres ) <- C.withPtr $ \tupp -> [C.exp| int {
         clang_parseTranslationUnit2(
           $(CXIndex idxp),
           $(char* cPath),
@@ -77,7 +78,7 @@ parseTranslationUnit idx path args = do
 translationUnitCursor :: TranslationUnit -> Cursor
 translationUnitCursor tu = unsafePerformIO $ do
   cn <- child tu $ \tup -> do
-    cp <- [CU.block| CXCursor* { ALLOC(CXCursor,
+    cp <- [C.block| CXCursor* { ALLOC(CXCursor,
       clang_getTranslationUnitCursor($(CXTranslationUnit tup))
       )} |]
     return ( free cp, cp )
@@ -88,7 +89,7 @@ cursorTranslationUnit (Cursor c) = parent c
 
 cursorKind :: Cursor -> CInt
 cursorKind c = uderef c $ \cp ->
-  [CU.exp| int { clang_getCursorKind(*$(CXCursor *cp)) } |]
+  [C.exp| int { clang_getCursorKind(*$(CXCursor *cp)) } |]
 
 cursorChildren :: Fold Cursor Cursor
 cursorChildren f c = uderef c $ \cp -> do
@@ -98,7 +99,7 @@ cursorChildren f c = uderef c $ \cp -> do
       ch <- child (cursorTranslationUnit c) $ \_ ->
         return ( free chp, chp )
       modifyIORef' fRef (*> f (Cursor ch))
-  [C.exp| void {
+  [CSafe.exp| void {
     clang_visitChildren(
       *$(CXCursor *cp),
       visit_haskell,
@@ -109,20 +110,20 @@ cursorChildren f c = uderef c $ \cp -> do
 withCXString :: (Ptr CXString -> IO ()) -> IO ByteString
 withCXString f = allocaBytes (#size CXString) $ \cxsp -> do
   f cxsp
-  cs <- [CU.exp| const char * { clang_getCString(*$(CXString *cxsp)) } |]
+  cs <- [C.exp| const char * { clang_getCString(*$(CXString *cxsp)) } |]
   s <- BS.packCString cs
-  [CU.exp| void { clang_disposeString(*$(CXString *cxsp)) } |]
+  [C.exp| void { clang_disposeString(*$(CXString *cxsp)) } |]
   return s
 
 cursorSpelling :: Cursor -> ByteString
 cursorSpelling c = uderef c $ \cp -> withCXString $ \cxsp ->
-  [CU.block| void {
+  [C.block| void {
     *$(CXString *cxsp) = clang_getCursorSpelling(*$(CXCursor *cp));
     } |]
 
 cursorExtent :: Cursor -> Maybe SourceRange
 cursorExtent c = uderef c $ \cp -> do
-  srp <- [CU.block| CXSourceRange* {
+  srp <- [C.block| CXSourceRange* {
     CXSourceRange sr = clang_getCursorExtent(*$(CXCursor *cp));
     if (clang_Range_isNull(sr)) {
       return NULL;
@@ -139,13 +140,13 @@ cursorExtent c = uderef c $ \cp -> do
 
 cursorUSR :: Cursor -> ByteString
 cursorUSR c = uderef c $ \cp -> withCXString $ \cxsp ->
-  [CU.block| void {
+  [C.block| void {
     *$(CXString *cxsp) = clang_getCursorUSR(*$(CXCursor *cp));
     } |]
 
 cursorReferenced :: Cursor -> Maybe Cursor
 cursorReferenced c = uderef c $ \cp -> do
-  rcp <- [CU.block| CXCursor* {
+  rcp <- [C.block| CXCursor* {
     CXCursor ref = clang_getCursorReferenced(*$(CXCursor *cp));
     if (clang_Cursor_isNull(ref)) {
       return NULL;
@@ -159,7 +160,7 @@ cursorReferenced c = uderef c $ \cp -> do
 
 rangeStart, rangeEnd :: SourceRange -> SourceLocation
 rangeStart sr = uderef sr $ \srp -> do
-  slp <- [CU.block| CXSourceLocation* { ALLOC(CXSourceLocation,
+  slp <- [C.block| CXSourceLocation* { ALLOC(CXSourceLocation,
     clang_getRangeStart(*$(CXSourceRange *srp))
     )} |]
   sln <- child (parent sr) $ \_ ->
@@ -167,7 +168,7 @@ rangeStart sr = uderef sr $ \srp -> do
   return $ SourceLocation sln
 
 rangeEnd sr = uderef sr $ \srp -> do
-  slp <- [CU.block| CXSourceLocation* { ALLOC(CXSourceLocation,
+  slp <- [C.block| CXSourceLocation* { ALLOC(CXSourceLocation,
     clang_getRangeEnd(*$(CXSourceRange *srp))
     )} |]
   sln <- child (parent sr) $ \_ ->
@@ -177,7 +178,7 @@ rangeEnd sr = uderef sr $ \srp -> do
 spellingLocation :: SourceLocation -> Location
 spellingLocation sl = uderef sl $ \slp -> do
   ( f, l, c, o ) <- C.withPtrs_ $ \( fp, lp, cp, offp ) ->
-    [CU.exp| void {
+    [C.exp| void {
       clang_getSpellingLocation(
         *$(CXSourceLocation *slp),
         $(CXFile *fp),
@@ -195,7 +196,7 @@ spellingLocation sl = uderef sl $ \slp -> do
 
 getFile :: TranslationUnit -> FilePath -> Maybe File
 getFile tu p = uderef tu $ \tup -> withCString p $ \fn -> do
-  fp <- [CU.exp| CXFile {
+  fp <- [C.exp| CXFile {
     clang_getFile($(CXTranslationUnit tup), $(const char *fn))
     } |]
   if fp == nullPtr
@@ -204,21 +205,21 @@ getFile tu p = uderef tu $ \tup -> withCString p $ \fn -> do
 
 fileName :: File -> ByteString
 fileName f = uderef f $ \fp -> withCXString $ \cxsp ->
-  [CU.block| void {
+  [C.block| void {
     *$(CXString *cxsp) = clang_getFileName($(CXFile fp));
     } |]
 
 instance Eq Cursor where
   (==) = defaultEq $ \lp rp ->
-    [CU.exp| int { clang_equalCursors(*$(CXCursor *lp), *$(CXCursor *rp)) } |]
+    [C.exp| int { clang_equalCursors(*$(CXCursor *lp), *$(CXCursor *rp)) } |]
 
 instance Eq SourceRange where
   (==) = defaultEq $ \lp rp ->
-    [CU.exp| int { clang_equalRanges(*$(CXSourceRange *lp), *$(CXSourceRange *rp)) } |]
+    [C.exp| int { clang_equalRanges(*$(CXSourceRange *lp), *$(CXSourceRange *rp)) } |]
 
 instance Eq SourceLocation where
   (==) = defaultEq $ \lp rp ->
-    [CU.exp| int { clang_equalLocations(*$(CXSourceLocation *lp), *$(CXSourceLocation *rp)) } |]
+    [C.exp| int { clang_equalLocations(*$(CXSourceLocation *lp), *$(CXSourceLocation *rp)) } |]
 
 defaultEq :: (Ref r, RefType r ~ a) => (Ptr a -> Ptr a -> IO CInt) -> r -> r -> Bool
 defaultEq ne l r
