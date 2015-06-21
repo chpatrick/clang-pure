@@ -14,7 +14,7 @@ main = do
       = fmap (file . spellingLocation . rangeStart) . cursorExtent
     ast
       = flip unfoldTree (translationUnitCursor tu) $ \n ->
-        ( BS.unpack $ cursorSpelling n
+        ( show $ cursorKind n
         , toListOf (droppingWhile (\c -> loc c /= Just srcFile) cursorChildren) n
         )
   putStrLn (drawTree ast)
