@@ -17,32 +17,12 @@ import Foreign.C
 import qualified Language.C.Inline as C
 import qualified Language.C.Inline.Unsafe as CU
 import System.IO.Unsafe
-import qualified Text.RawString.QQ as R
 
 C.context clangCtx
 C.include "stdlib.h"
+#include  "clang-c/Index.h"
 C.include "clang-c/Index.h"
-
-C.verbatim [R.r|
-  typedef void (*haskell_visitor)(CXCursor*);
-
-  // Traverse children using a haskell_visitor passed in as client_data.
-  // The visitor gets a copy of the cursor on the heap and is responsible
-  // for freeing it.
-  static enum CXChildVisitResult visit_haskell(CXCursor cursor, CXCursor parent, CXClientData client_data) {
-    CXCursor *heapCursor = malloc(sizeof(CXCursor));
-    *heapCursor = cursor;
-    ((haskell_visitor) client_data)(heapCursor);
-    return CXChildVisit_Continue;
-  };
-
-  // Macro that makes a copy of the result of a given expression on the heap and returns it.
-  #define ALLOC(__ALLOC_TYPE__, __ALLOC_EXPR__) {\
-    __ALLOC_TYPE__ *__alloc_ptr__ = malloc(sizeof(__ALLOC_TYPE__));\
-    *__alloc_ptr__ = (__ALLOC_EXPR__);\
-    return __alloc_ptr__;\
-  }
-|]
+C.include "utils.h"
 
 foreign import ccall "clang_disposeIndex"
   clang_disposeIndex :: Ptr CXIndexImpl -> Finalizer
@@ -55,29 +35,42 @@ createIndex = do
 foreign import ccall "clang_disposeTranslationUnit"
   clang_disposeTranslationUnit :: Ptr CXTranslationUnitImpl -> Finalizer
 
-newtype ClangException = ClangException CInt
-  deriving Show
+data ClangError
+  = Success
+  | Failure
+  | Crashed
+  | InvalidArguments
+  | ASTReadError
+  deriving (Eq, Ord, Show)
 
-instance Exception ClangException
+parseClangError :: CInt -> ClangError
+parseClangError = \case
+  #{const CXError_Success} -> Success
+  #{const CXError_Failure} -> Failure
+  #{const CXError_Crashed} -> Crashed
+  #{const CXError_InvalidArguments} -> InvalidArguments
+  #{const CXError_ASTReadError} -> ASTReadError
+  _ -> Failure
+
+instance Exception ClangError
 
 parseTranslationUnit :: ClangIndex -> String -> [ String ] -> IO TranslationUnit
 parseTranslationUnit idx path args = do
   tun <- child idx $ \idxp -> 
     withCString path $ \cPath -> do
       cArgs <- VS.fromList <$> traverse newCString args
-      ( tup, res ) <- C.withPtr $ \tupp -> [CU.exp| int {
+      ( tup, cres ) <- C.withPtr $ \tupp -> [CU.exp| int {
         clang_parseTranslationUnit2(
           $(CXIndex idxp),
           $(char* cPath),
           $vec-ptr:(const char * const * cArgs), $vec-len:cArgs,
           NULL, 0,
           0,
-          $(CXTranslationUnit *tupp)
-          )
+          $(CXTranslationUnit *tupp))
         } |]
       traverse_ free $ VS.toList cArgs
-      when (res /= 0) $
-        throwIO (ClangException res)
+      let res = parseClangError cres
+      when (res /= Success) $ throwIO res
       return ( clang_disposeTranslationUnit tup, tup )
   return $ TranslationUnitRef tun
 
@@ -114,7 +107,7 @@ cursorChildren f c = uderef c $ \cp -> do
   readIORef fRef
 
 withCXString :: (Ptr CXString -> IO ()) -> IO ByteString
-withCXString f = allocaBytes cxStringSize $ \cxsp -> do
+withCXString f = allocaBytes (#size CXString) $ \cxsp -> do
   f cxsp
   cs <- [CU.exp| const char * { clang_getCString(*$(CXString *cxsp)) } |]
   s <- BS.packCString cs
@@ -143,6 +136,26 @@ cursorExtent c = uderef c $ \cp -> do
       srn <- child (cursorTranslationUnit c) $ \_ ->
         return ( free srp, srp )
       return $ Just $ SourceRange srn
+
+cursorUSR :: Cursor -> ByteString
+cursorUSR c = uderef c $ \cp -> withCXString $ \cxsp ->
+  [CU.block| void {
+    *$(CXString *cxsp) = clang_getCursorUSR(*$(CXCursor *cp));
+    } |]
+
+cursorReferenced :: Cursor -> Maybe Cursor
+cursorReferenced c = uderef c $ \cp -> do
+  rcp <- [CU.block| CXCursor* {
+    CXCursor ref = clang_getCursorReferenced(*$(CXCursor *cp));
+    if (clang_Cursor_isNull(ref)) {
+      return NULL;
+    }
+
+    ALLOC(CXCursor, ref);
+    } |]
+  if rcp /= nullPtr
+    then (Just . Cursor) <$> child (parent c) (\_ -> return ( free rcp, rcp ))
+    else return Nothing
 
 rangeStart, rangeEnd :: SourceRange -> SourceLocation
 rangeStart sr = uderef sr $ \srp -> do

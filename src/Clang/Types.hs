@@ -4,8 +4,6 @@ import Foreign
 
 import Clang.Refs
 
-#include "clang-c/Index.h"
-
 -- The default instance of Eq for Clang types does structural equality,
 -- i.e. it checks whether they represent the same AST object.
 -- This is inconsistent with an Ord instance, so if you need ordering
@@ -61,8 +59,6 @@ newtype File
   deriving (Ref, Eq)
 
 data CXString
-cxStringSize :: Int
-cxStringSize = #size CXString
 
 data Location = Location
   { file :: File
