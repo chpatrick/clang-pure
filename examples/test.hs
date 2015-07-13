@@ -20,8 +20,13 @@ main = do
       Nothing -> False
       Just ex -> (file $ spellingLocation $ rangeStart ex) == srcFile
     root = translationUnitCursor tu
+    allNodes :: Fold Cursor Cursor
     allNodes = univ (cursorChildren . filtered inFile)
     gotos = lengthOf (allNodes . filtered (\c -> cursorKind c == GotoStmt)) root
+    literalValues = root ^.. allNodes . filtered (\c -> cursorKind c == IntegerLiteral)
+                      . folding (firstOf (folding cursorExtent . to tokenize . folding tokenSetTokens))
+                      . to tokenSpelling
+  print literalValues
   putStrLn $ if gotos == 0
     then "No gotos!"
     else show gotos ++ " goto(s)! You should feel bad!"

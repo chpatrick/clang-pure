@@ -18,6 +18,8 @@ clangTypesTable = M.fromList
   , (C.TypeName "CXSourceRange", [t| CXSourceRange |])
   , (C.TypeName "CXSourceLocation", [t| CXSourceLocation |])
   , (C.TypeName "CXFile", [t| CXFile |])
+  , (C.TypeName "CXType", [t| CXType |])
+  , (C.TypeName "CXToken", [t| CXToken |])
   ]
 
 clangCtx :: C.Context

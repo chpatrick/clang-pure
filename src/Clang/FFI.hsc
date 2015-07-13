@@ -88,8 +88,7 @@ cursorTranslationUnit :: Cursor -> TranslationUnit
 cursorTranslationUnit (Cursor c) = parent c
 
 cursorKind :: Cursor -> CursorKind
-cursorKind c = uderef c $ \cp ->
-  parseCursorKind <$> [C.exp| int { clang_getCursorKind(*$(CXCursor *cp)) } |]
+cursorKind c = uderef c $ fmap parseCursorKind . #peek CXCursor, kind
 
 cursorChildren :: Fold Cursor Cursor
 cursorChildren f c = uderef c $ \cp -> do
@@ -220,6 +219,10 @@ instance Eq SourceRange where
 instance Eq SourceLocation where
   (==) = defaultEq $ \lp rp ->
     [C.exp| int { clang_equalLocations(*$(CXSourceLocation *lp), *$(CXSourceLocation *rp)) } |]
+
+instance Eq Type where
+  (==) = defaultEq $ \lp rp ->
+    [C.exp| int { clang_equalTypes(*$(CXType *lp), *$(CXType *rp)) } |]
 
 defaultEq :: (Ref r, RefType r ~ a) => (Ptr a -> Ptr a -> IO CInt) -> r -> r -> Bool
 defaultEq ne l r
@@ -417,3 +420,120 @@ parseCursorKind = \case
   #{const CXCursor_FirstExtraDecl} -> FirstExtraDecl
   #{const CXCursor_LastExtraDecl} -> LastExtraDecl
   _ -> UnexposedDecl -- unrecognized enum value
+
+cursorType :: Cursor -> Maybe Type
+cursorType c = uderef c $ \cp -> do
+  tp <- [C.block| CXType* {
+    CXType type = clang_getCursorType(*$(CXCursor *cp));
+
+    if (type.kind == CXType_Invalid) {
+      return NULL;
+    }
+
+    ALLOC(CXType, type);
+    } |]
+  if tp == nullPtr
+    then return Nothing
+    else (Just . Type) <$> child (parent c) (\_ -> return ( free tp, tp ))
+
+typeKind :: Type -> TypeKind
+typeKind t = uderef t $ fmap parseTypeKind . #peek CXType, kind
+
+parseTypeKind :: CInt -> TypeKind
+parseTypeKind = \case
+  #{const CXType_Invalid} -> Invalid
+  #{const CXType_Unexposed} -> Unexposed
+  #{const CXType_Void} -> Void
+  #{const CXType_Bool} -> Bool
+  #{const CXType_Char_U} -> Char_U
+  #{const CXType_UChar} -> UChar
+  #{const CXType_Char16} -> Char16
+  #{const CXType_Char32} -> Char32
+  #{const CXType_UShort} -> UShort
+  #{const CXType_UInt} -> UInt
+  #{const CXType_ULong} -> ULong
+  #{const CXType_ULongLong} -> ULongLong
+  #{const CXType_UInt128} -> UInt128
+  #{const CXType_Char_S} -> Char_S
+  #{const CXType_SChar} -> SChar
+  #{const CXType_WChar} -> WChar
+  #{const CXType_Short} -> Short
+  #{const CXType_Int} -> Int
+  #{const CXType_Long} -> Long
+  #{const CXType_LongLong} -> LongLong
+  #{const CXType_Int128} -> Int128
+  #{const CXType_Float} -> Float
+  #{const CXType_Double} -> Double
+  #{const CXType_LongDouble} -> LongDouble
+  #{const CXType_NullPtr} -> NullPtr
+  #{const CXType_Overload} -> Overload
+  #{const CXType_Dependent} -> Dependent
+  #{const CXType_ObjCId} -> ObjCId
+  #{const CXType_ObjCClass} -> ObjCClass
+  #{const CXType_ObjCSel} -> ObjCSel
+  #{const CXType_FirstBuiltin} -> FirstBuiltin
+  #{const CXType_LastBuiltin} -> LastBuiltin
+  #{const CXType_Complex} -> Complex
+  #{const CXType_Pointer} -> Pointer
+  #{const CXType_BlockPointer} -> BlockPointer
+  #{const CXType_LValueReference} -> LValueReference
+  #{const CXType_RValueReference} -> RValueReference
+  #{const CXType_Record} -> Record
+  #{const CXType_Enum} -> Enum
+  #{const CXType_Typedef} -> Typedef
+  #{const CXType_ObjCInterface} -> ObjCInterface
+  #{const CXType_ObjCObjectPointer} -> ObjCObjectPointer
+  #{const CXType_FunctionNoProto} -> FunctionNoProto
+  #{const CXType_FunctionProto} -> FunctionProto
+  #{const CXType_ConstantArray} -> ConstantArray
+  #{const CXType_Vector} -> Vector
+  #{const CXType_IncompleteArray} -> IncompleteArray
+  #{const CXType_VariableArray} -> VariableArray
+  #{const CXType_DependentSizedArray} -> DependentSizedArray
+  #{const CXType_MemberPointer} -> MemberPointer
+  _ -> Unexposed
+
+instance Ref Token where
+  deref (Token ts i) f
+    = deref (tokenSetRef ts) $ f . (`plusPtr` (i * (#size CXToken)))
+  node (Token ts _) = node $ tokenSetRef ts
+  parent (Token ts _) = parent $ tokenSetRef ts
+
+foreign import ccall "clang_disposeTokens"
+  clang_disposeTokens :: CXTranslationUnit -> Ptr CXToken -> CUInt -> Finalizer
+
+tokenize :: SourceRange -> TokenSet
+tokenize sr = unsafePerformIO $
+  deref (parent sr) $ \tup ->
+    deref sr $ \srp -> do
+      ( tsp, tn ) <- C.withPtrs_ $ \( tspp, tnp ) ->
+        [C.exp| void {
+          clang_tokenize(
+            $(CXTranslationUnit tup), 
+            *$(CXSourceRange *srp),
+            $(CXToken **tspp),
+            $(unsigned int *tnp));
+          } |]
+      tsn <- child (parent sr) $ \_ ->
+        return ( clang_disposeTokens tup tsp tn, tsp )
+      return $ TokenSet tsn (fromIntegral tn)
+
+tokenSetTokens :: TokenSet -> [ Token ]
+tokenSetTokens ts
+  = map (Token ts) [0..tokenSetSize ts - 1]
+
+indexTokenSet :: Int -> TokenSet -> Token
+indexTokenSet i ts
+  | 0 <= i && i < tokenSetSize ts = Token ts i
+  | otherwise = error "Token index out of bounds."
+
+tokenSpelling :: Token -> ByteString
+tokenSpelling t = unsafePerformIO $
+  deref (parent t) $ \tup ->
+    deref t $ \tp ->
+      withCXString $ \cxsp -> do
+        [C.block| void {
+          *$(CXString *cxsp) = clang_getTokenSpelling(
+            $(CXTranslationUnit tup),
+            *$(CXToken *tp));
+          } |]

@@ -258,3 +258,72 @@ data CursorKind
   | FirstExtraDecl
   | LastExtraDecl
   deriving (Eq, Ord, Show)
+
+data TypeKind
+  = Invalid
+  | Unexposed
+  | Void
+  | Bool
+  | Char_U
+  | UChar
+  | Char16
+  | Char32
+  | UShort
+  | UInt
+  | ULong
+  | ULongLong
+  | UInt128
+  | Char_S
+  | SChar
+  | WChar
+  | Short
+  | Int
+  | Long
+  | LongLong
+  | Int128
+  | Float
+  | Double
+  | LongDouble
+  | NullPtr
+  | Overload
+  | Dependent
+  | ObjCId
+  | ObjCClass
+  | ObjCSel
+  | FirstBuiltin
+  | LastBuiltin
+  | Complex
+  | Pointer
+  | BlockPointer
+  | LValueReference
+  | RValueReference
+  | Record
+  | Enum
+  | Typedef
+  | ObjCInterface
+  | ObjCObjectPointer
+  | FunctionNoProto
+  | FunctionProto
+  | ConstantArray
+  | Vector
+  | IncompleteArray
+  | VariableArray
+  | DependentSizedArray
+  | MemberPointer
+    deriving (Eq, Ord, Show)
+
+data CXType
+type instance RefType Type = CXType
+type instance ParentType Type = TranslationUnit
+newtype Type = Type (Child TranslationUnit CXType)
+  deriving Ref
+
+data CXToken
+data TokenSet = TokenSet 
+  { tokenSetRef :: Child TranslationUnit CXToken
+  , tokenSetSize :: Int
+  }
+
+type instance RefType Token = CXToken
+type instance ParentType Token = TranslationUnit
+data Token = Token TokenSet Int

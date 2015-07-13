@@ -21,7 +21,8 @@ library
                        OverloadedStrings,
                        LambdaCase,
                        NamedFieldPuns,
-                       StandaloneDeriving
+                       StandaloneDeriving,
+                       FlexibleContexts
   build-depends:       base >=4.8 && <4.9,
                        lens,
                        inline-c >= 0.5.3.2,
@@ -38,7 +39,7 @@ library
   cc-options:          -Wall
   ld-options:          -lclang-3.5
   extra-libraries:     clang-3.5
-  ghc-options:         -Wall
+  ghc-options:         -Wall -O2
 
 executable test
   hs-source-dirs: examples
