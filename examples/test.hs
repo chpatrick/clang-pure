@@ -7,21 +7,14 @@ import qualified Data.ByteString.Char8 as BS
 import Data.Monoid
 import Data.Tree
 
--- generalized universeOf
-univ :: Fold a a -> Fold a a
-univ fld f = fld $ \x -> f x *> univ fld f x
-
 main = do
   idx <- createIndex
   tu <- parseTranslationUnit idx "examples/test.c" []
   let
-    Just srcFile = getFile tu "examples/test.c"
-    inFile c = case cursorExtent c of
-      Nothing -> False
-      Just ex -> (file $ spellingLocation $ rangeStart ex) == srcFile
+    inFile c = ((isFromMainFile . rangeStart) <$> cursorExtent c) == Just True
     root = translationUnitCursor tu
     allNodes :: Fold Cursor Cursor
-    allNodes = univ (cursorChildren . filtered inFile)
+    allNodes = cosmosOf (cursorChildren . filtered inFile)
     gotos = lengthOf (allNodes . filtered (\c -> cursorKind c == GotoStmt)) root
     literalValues = root ^.. allNodes . filtered (\c -> cursorKind c == IntegerLiteral)
                       . folding (firstOf (folding cursorExtent . to tokenize . folding tokenSetTokens))

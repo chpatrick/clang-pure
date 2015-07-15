@@ -537,3 +537,15 @@ tokenSpelling t = unsafePerformIO $
             $(CXTranslationUnit tup),
             *$(CXToken *tp));
           } |]
+
+isInSystemHeader :: SourceLocation -> Bool
+isInSystemHeader l = uderef l $ \lp ->
+  toBool <$> [C.exp| int {
+    clang_Location_isInSystemHeader(*$(CXSourceLocation *lp))
+    } |]
+
+isFromMainFile :: SourceLocation -> Bool
+isFromMainFile l = uderef l $ \lp ->
+  toBool <$> [C.exp| int {
+    clang_Location_isFromMainFile(*$(CXSourceLocation *lp))
+    } |]
