@@ -14,7 +14,7 @@ cabal-version:         >=1.10
 
 library
   exposed-modules:     Clang, Clang.Types, Clang.FFI, Clang.Refs
-  extensions:          TypeFamilies,
+  default-extensions:  TypeFamilies,
                        GeneralizedNewtypeDeriving,
                        TemplateHaskell,
                        QuasiQuotes,
