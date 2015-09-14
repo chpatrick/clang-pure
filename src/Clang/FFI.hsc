@@ -71,7 +71,7 @@ parseClangError = \case
 
 instance Exception ClangError
 
-parseTranslationUnit :: ClangIndex -> String -> [ String ] -> IO TranslationUnit
+parseTranslationUnit :: ClangIndex -> FilePath -> [ String ] -> IO TranslationUnit
 parseTranslationUnit idx path args = do
   tun <- child idx $ \idxp -> 
     withCString path $ \cPath -> do
@@ -94,7 +94,7 @@ parseTranslationUnit idx path args = do
 translationUnitCursor :: TranslationUnit -> Cursor
 translationUnitCursor tu = unsafePerformIO $ do
   cn <- child tu $ \tup -> do
-    cp <- [C.block| CXCursor* { ALLOC(CXCursor,
+    cp <- [C.exp| CXCursor* { ALLOC(
       clang_getTranslationUnitCursor($(CXTranslationUnit tup))
       )} |]
     return ( free cp, cp )
@@ -144,7 +144,7 @@ cursorExtent c = uderef c $ \cp -> do
       return NULL;
     }
 
-    ALLOC(CXSourceRange, sr);
+    return ALLOC(sr);
     } |]
   if srp == nullPtr
     then return Nothing
@@ -167,7 +167,7 @@ cursorReferenced c = uderef c $ \cp -> do
       return NULL;
     }
 
-    ALLOC(CXCursor, ref);
+    return ALLOC(ref);
     } |]
   if rcp /= nullPtr
     then (Just . Cursor) <$> child (parent c) (\_ -> return ( free rcp, rcp ))
@@ -175,7 +175,7 @@ cursorReferenced c = uderef c $ \cp -> do
 
 rangeStart, rangeEnd :: SourceRange -> SourceLocation
 rangeStart sr = uderef sr $ \srp -> do
-  slp <- [C.block| CXSourceLocation* { ALLOC(CXSourceLocation,
+  slp <- [C.exp| CXSourceLocation* { ALLOC(
     clang_getRangeStart(*$(CXSourceRange *srp))
     )} |]
   sln <- child (parent sr) $ \_ ->
@@ -183,7 +183,7 @@ rangeStart sr = uderef sr $ \srp -> do
   return $ SourceLocation sln
 
 rangeEnd sr = uderef sr $ \srp -> do
-  slp <- [C.block| CXSourceLocation* { ALLOC(CXSourceLocation,
+  slp <- [C.exp| CXSourceLocation* { ALLOC(
     clang_getRangeEnd(*$(CXSourceRange *srp))
     )} |]
   sln <- child (parent sr) $ \_ ->
@@ -446,7 +446,7 @@ cursorType c = uderef c $ \cp -> do
       return NULL;
     }
 
-    ALLOC(CXType, type);
+    return ALLOC(type);
     } |]
   if tp == nullPtr
     then return Nothing
