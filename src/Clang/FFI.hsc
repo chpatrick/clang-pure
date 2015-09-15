@@ -509,6 +509,11 @@ parseTypeKind = \case
   #{const CXType_MemberPointer} -> MemberPointer
   _ -> Unexposed
 
+typeSpelling :: Type -> ByteString
+typeSpelling t = uderef t $ \tp ->
+  withCXString $ \cxsp ->
+    [C.exp| void { *$(CXString *cxsp) = clang_getTypeSpelling(*$(CXType *tp)); } |]
+
 instance Ref Token where
   deref (Token ts i) f
     = deref (tokenSetRef ts) $ f . (`plusPtr` (i * (#size CXToken)))

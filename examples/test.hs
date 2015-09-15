@@ -14,9 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-{-# LANGUAGE PatternSynonyms, ViewPatterns, RankNTypes, LambdaCase #-}
+{-# LANGUAGE PatternSynonyms, ViewPatterns, RankNTypes, LambdaCase, TupleSections #-}
 
 import Clang
+import Data.Foldable
 import Data.Function
 import Control.Lens
 import qualified Data.ByteString.Char8 as BS
@@ -31,11 +32,9 @@ main = do
     root = translationUnitCursor tu
     allNodes :: Fold Cursor Cursor
     allNodes = cosmosOf (cursorChildren . filtered inFile)
-    gotos = lengthOf (allNodes . filtered (\c -> cursorKind c == GotoStmt)) root
-    literalValues = root ^.. allNodes . filtered (\c -> cursorKind c == IntegerLiteral)
-                      . folding (firstOf (folding cursorExtent . to tokenize . folding tokenSetTokens))
-                      . to tokenSpelling
-  print literalValues
-  putStrLn $ if gotos == 0
-    then "No gotos!"
-    else show gotos ++ " goto(s)! You should feel bad!"
+    funDecs =
+      root ^..
+        cosmosOf cursorChildren
+        . filtered (\c -> cursorKind c == FunctionDecl)
+        . folding (\c -> ( cursorSpelling c, ) <$> (typeSpelling <$> cursorType c))
+  for_ funDecs $ \(f, t) -> putStrLn $ BS.unpack f ++ " :: " ++ BS.unpack t
