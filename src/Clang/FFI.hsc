@@ -47,7 +47,7 @@ foreign import ccall "clang_disposeIndex"
 createIndex :: IO ClangIndex
 createIndex = do
   idxp <- [C.exp| CXIndex { clang_createIndex(0, 1) } |]
-  ClangIndex <$> root (clang_disposeIndex idxp) idxp
+  ClangIndex <$> newRoot idxp (clang_disposeIndex idxp)
 
 foreign import ccall "clang_disposeTranslationUnit"
   clang_disposeTranslationUnit :: Ptr CXTranslationUnitImpl -> Finalizer
@@ -73,7 +73,7 @@ instance Exception ClangError
 
 parseTranslationUnit :: ClangIndex -> FilePath -> [ String ] -> IO TranslationUnit
 parseTranslationUnit idx path args = do
-  tun <- child idx $ \idxp -> 
+  tun <- newNode idx $ \idxp ->
     withCString path $ \cPath -> do
       cArgs <- VS.fromList <$> traverse newCString args
       ( tup, cres ) <- C.withPtr $ \tupp -> [C.exp| int {
@@ -88,16 +88,16 @@ parseTranslationUnit idx path args = do
       traverse_ free $ VS.toList cArgs
       let res = parseClangError cres
       when (res /= Success) $ throwIO res
-      return ( clang_disposeTranslationUnit tup, tup )
+      return ( tup, clang_disposeTranslationUnit tup )
   return $ TranslationUnitRef tun
 
 translationUnitCursor :: TranslationUnit -> Cursor
 translationUnitCursor tu = unsafePerformIO $ do
-  cn <- child tu $ \tup -> do
+  cn <- newLeaf tu $ \tup -> do
     cp <- [C.exp| CXCursor* { ALLOC(
       clang_getTranslationUnitCursor($(CXTranslationUnit tup))
       )} |]
-    return ( free cp, cp )
+    return ( cp, free cp )
   return $ Cursor cn
 
 cursorTranslationUnit :: Cursor -> TranslationUnit
@@ -111,8 +111,8 @@ cursorChildren f c = uderef c $ \cp -> do
   fRef <- newIORef noEffect
   let 
     visitChild chp = do
-      ch <- child (cursorTranslationUnit c) $ \_ ->
-        return ( free chp, chp )
+      ch <- newLeaf (cursorTranslationUnit c) $ \_ ->
+        return ( chp, free chp )
       modifyIORef' fRef (*> f (Cursor ch))
   [CSafe.exp| void {
     clang_visitChildren(
@@ -149,8 +149,8 @@ cursorExtent c = uderef c $ \cp -> do
   if srp == nullPtr
     then return Nothing
     else do
-      srn <- child (cursorTranslationUnit c) $ \_ ->
-        return ( free srp, srp )
+      srn <- newLeaf (cursorTranslationUnit c) $ \_ ->
+        return ( srp, free srp )
       return $ Just $ SourceRange srn
 
 cursorUSR :: Cursor -> ByteString
@@ -170,7 +170,7 @@ cursorReferenced c = uderef c $ \cp -> do
     return ALLOC(ref);
     } |]
   if rcp /= nullPtr
-    then (Just . Cursor) <$> child (parent c) (\_ -> return ( free rcp, rcp ))
+    then (Just . Cursor) <$> newLeaf (parent c) (\_ -> return ( rcp, free rcp ))
     else return Nothing
 
 rangeStart, rangeEnd :: SourceRange -> SourceLocation
@@ -178,16 +178,16 @@ rangeStart sr = uderef sr $ \srp -> do
   slp <- [C.exp| CXSourceLocation* { ALLOC(
     clang_getRangeStart(*$(CXSourceRange *srp))
     )} |]
-  sln <- child (parent sr) $ \_ ->
-    return ( free slp, slp )
+  sln <- newLeaf (parent sr) $ \_ ->
+    return ( slp, free slp )
   return $ SourceLocation sln
 
 rangeEnd sr = uderef sr $ \srp -> do
   slp <- [C.exp| CXSourceLocation* { ALLOC(
     clang_getRangeEnd(*$(CXSourceRange *srp))
     )} |]
-  sln <- child (parent sr) $ \_ ->
-    return ( free slp, slp )
+  sln <- newLeaf (parent sr) $ \_ ->
+    return ( slp, free slp )
   return $ SourceLocation sln
 
 spellingLocation :: SourceLocation -> Location
@@ -201,7 +201,7 @@ spellingLocation sl = uderef sl $ \slp -> do
         $(unsigned int *cp),
         $(unsigned int *offp))
       } |]
-  fn <- child (parent sl) $ \_ -> return ( return (), f )
+  fn <- newLeaf (parent sl) $ \_ -> return ( f, return () )
   return $ Location
     { file = File fn
     , line = fromIntegral l
@@ -216,7 +216,7 @@ getFile tu p = uderef tu $ \tup -> withCString p $ \fn -> do
     } |]
   if fp == nullPtr
     then return Nothing
-    else (Just . File) <$> child tu (\_ -> return ( return (), fp ))
+    else (Just . File) <$> newLeaf tu (\_ -> return ( fp, return () ))
 
 fileName :: File -> ByteString
 fileName f = uderef f $ \fp -> withCXString $ \cxsp ->
@@ -240,9 +240,16 @@ instance Eq Type where
   (==) = defaultEq $ \lp rp ->
     [C.exp| int { clang_equalTypes(*$(CXType *lp), *$(CXType *rp)) } |]
 
-defaultEq :: (Ref r, RefType r ~ a) => (Ptr a -> Ptr a -> IO CInt) -> r -> r -> Bool
+-- Checks for pointer equality, alternatively checks for structural equality with the given function.
+defaultEq :: (Ref r, RefOf r ~ a) => (Ptr a -> Ptr a -> IO CInt) -> r -> r -> Bool
 defaultEq ne l r
-  = node l == node r || uderef2 l r ne /= 0
+  = l `pointerEq` r || structEq
+    where
+      structEq =
+        unsafePerformIO $
+          deref l $ \p ->
+            deref r $ \p' ->
+              (/=0) <$> ne p p'
 
 parseCursorKind :: CInt -> CursorKind
 parseCursorKind = \case
@@ -450,7 +457,7 @@ cursorType c = uderef c $ \cp -> do
     } |]
   if tp == nullPtr
     then return Nothing
-    else (Just . Type) <$> child (parent c) (\_ -> return ( free tp, tp ))
+    else (Just . Type) <$> newLeaf (parent c) (\_ -> return ( tp, free tp ))
 
 typeKind :: Type -> TypeKind
 typeKind t = uderef t $ fmap parseTypeKind . #peek CXType, kind
@@ -517,8 +524,11 @@ typeSpelling t = uderef t $ \tp ->
 instance Ref Token where
   deref (Token ts i) f
     = deref (tokenSetRef ts) $ f . (`plusPtr` (i * (#size CXToken)))
-  node (Token ts _) = node $ tokenSetRef ts
-  parent (Token ts _) = parent $ tokenSetRef ts
+  unsafeToPtr (Token ts i)
+     = unsafeToPtr (tokenSetRef ts) `plusPtr` (i * (#size CXToken))
+
+instance Child Token where
+  parent (Token ts _) = parent (tokenSetRef ts)
 
 foreign import ccall "clang_disposeTokens"
   clang_disposeTokens :: CXTranslationUnit -> Ptr CXToken -> CUInt -> Finalizer
@@ -535,8 +545,8 @@ tokenize sr = unsafePerformIO $
             $(CXToken **tspp),
             $(unsigned int *tnp));
           } |]
-      tsn <- child (parent sr) $ \_ ->
-        return ( clang_disposeTokens tup tsp tn, tsp )
+      tsn <- newLeaf (parent sr) $ \_ ->
+        return ( tsp, clang_disposeTokens tup tsp tn )
       return $ TokenSet tsn (fromIntegral tn)
 
 tokenSetTokens :: TokenSet -> [ Token ]

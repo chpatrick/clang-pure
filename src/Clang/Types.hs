@@ -27,52 +27,57 @@ import Clang.Refs
 newtype Ordered a = Ordered { getOrdered :: a }
 
 instance Ref a => Eq (Ordered a) where
-  Ordered x == Ordered y = node x == node y
+  Ordered x == Ordered y = x `pointerEq` y
 
 instance Ref a => Ord (Ordered a) where
-  Ordered x `compare` Ordered y = node x `compare` node y
+  Ordered x `compare` Ordered y = x `pointerCompare` y
 
 data CXIndexImpl
 type CXIndex = Ptr CXIndexImpl
-type instance RefType ClangIndex = CXIndexImpl
-type instance ParentType ClangIndex = ()
+type instance RefOf ClangIndex = CXIndexImpl
 newtype ClangIndex = ClangIndex (Root CXIndexImpl)
-  deriving (Eq, Ref)
+  deriving (Parent, Ref)
+
+instance Eq ClangIndex where (==) = pointerEq
 
 data CXTranslationUnitImpl
 type CXTranslationUnit = Ptr CXTranslationUnitImpl
-type instance RefType TranslationUnit = CXTranslationUnitImpl
-type instance ParentType TranslationUnit = ClangIndex
-newtype TranslationUnit = TranslationUnitRef (Child ClangIndex CXTranslationUnitImpl)
-  deriving (Eq, Ref)
+type instance RefOf TranslationUnit = CXTranslationUnitImpl
+type instance ParentOf TranslationUnit = ClangIndex
+newtype TranslationUnit = TranslationUnitRef (Node ClangIndex CXTranslationUnitImpl)
+  deriving (Parent, Child, Ref)
+
+instance Eq TranslationUnit where (==) = pointerEq
 
 data CXCursor
-type instance RefType Cursor = CXCursor
-type instance ParentType Cursor = TranslationUnit
-newtype Cursor = Cursor (Child TranslationUnit CXCursor)
-  deriving Ref
+type instance RefOf Cursor = CXCursor
+type instance ParentOf Cursor = TranslationUnit
+newtype Cursor = Cursor (Leaf TranslationUnit CXCursor)
+  deriving (Child, Ref)
 
 data CXSourceRange
-type instance RefType SourceRange = CXSourceRange
-type instance ParentType SourceRange = TranslationUnit
+type instance RefOf SourceRange = CXSourceRange
+type instance ParentOf SourceRange = TranslationUnit
 newtype SourceRange
-  = SourceRange (Child TranslationUnit CXSourceRange)
-  deriving Ref
+  = SourceRange (Leaf TranslationUnit CXSourceRange)
+  deriving (Child, Ref)
 
 data CXSourceLocation
-type instance RefType SourceLocation = CXSourceLocation
-type instance ParentType SourceLocation = TranslationUnit
+type instance RefOf SourceLocation = CXSourceLocation
+type instance ParentOf SourceLocation = TranslationUnit
 newtype SourceLocation
-  = SourceLocation (Child TranslationUnit CXSourceLocation)
-  deriving Ref
+  = SourceLocation (Leaf TranslationUnit CXSourceLocation)
+  deriving (Child, Ref)
 
 data CXFileImpl
 type CXFile = Ptr CXFileImpl
-type instance RefType File = CXFileImpl
-type instance ParentType File = TranslationUnit
+type instance RefOf File = CXFileImpl
+type instance ParentOf File = TranslationUnit
 newtype File
-  = File (Child TranslationUnit CXFileImpl)
-  deriving (Ref, Eq)
+  = File (Leaf TranslationUnit CXFileImpl)
+  deriving (Child, Ref)
+
+instance Eq File where (==) = pointerEq
 
 data CXString
 
@@ -329,17 +334,17 @@ data TypeKind
     deriving (Eq, Ord, Show)
 
 data CXType
-type instance RefType Type = CXType
-type instance ParentType Type = TranslationUnit
-newtype Type = Type (Child TranslationUnit CXType)
-  deriving Ref
+type instance RefOf Type = CXType
+type instance ParentOf Type = TranslationUnit
+newtype Type = Type (Leaf TranslationUnit CXType)
+  deriving (Child, Ref)
 
 data CXToken
 data TokenSet = TokenSet 
-  { tokenSetRef :: Child TranslationUnit CXToken
+  { tokenSetRef :: Leaf TranslationUnit CXToken
   , tokenSetSize :: Int
   }
 
-type instance RefType Token = CXToken
-type instance ParentType Token = TranslationUnit
+type instance RefOf Token = CXToken
+type instance ParentOf Token = TranslationUnit
 data Token = Token TokenSet Int
