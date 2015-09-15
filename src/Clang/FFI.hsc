@@ -580,3 +580,19 @@ isFromMainFile l = uderef l $ \lp ->
   toBool <$> [C.exp| int {
     clang_Location_isFromMainFile(*$(CXSourceLocation *lp))
     } |]
+
+instance Show Cursor where
+  show c =
+    "Cursor { cursorKind = "
+    ++ show (cursorKind c)
+    ++ ", cursorSpelling = "
+    ++ show (cursorSpelling c)
+    ++ "}"
+
+instance Show Type where
+  show t =
+    "Type { typeKind = "
+    ++ show (typeKind t)
+    ++ ", typeSpelling = "
+    ++ show (typeSpelling t)
+    ++ "}"
