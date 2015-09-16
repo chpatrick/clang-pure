@@ -17,7 +17,6 @@ limitations under the License.
 module Clang.Refs where
 
 import Control.Concurrent.MVar
-import Control.Lens
 import GHC.ForeignPtr (unsafeForeignPtrToPtr)
 import Foreign hiding (newForeignPtr)
 import Foreign.Concurrent
@@ -26,11 +25,9 @@ import System.IO.Unsafe
 type Finalizer = IO ()
 
 data NodeState = NodeState
-  { _destructable :: !Bool
-  , _refCount :: !Int
+  { destructable :: !Bool
+  , refCount :: !Int
   }
-
-makeLenses ''NodeState
 
 type family RefOf n
 class Ref n where
@@ -53,19 +50,19 @@ data Root a = Root
 
 newRoot :: Ptr a -> Finalizer -> IO (Root a)
 newRoot ptr fin = do
-  nsv <- newMVar $ NodeState { _destructable = False, _refCount = 0 }
+  nsv <- newMVar $ NodeState { destructable = False, refCount = 0 }
   nptr <- newForeignPtr ptr $ modifyMVar_ nsv $ \ns ->
-    if ns ^. refCount == 0
+    if refCount ns == 0
       then fin >> return ns
-      else return $ ns & destructable .~ True
+      else return $ ns { destructable = True }
   return $ Root nptr nsv fin
 
 instance Parent (Root a) where
-  incCount r = modifyMVar_ (nodeState r) (return . (refCount +~ 1))
+  incCount r = modifyMVar_ (nodeState r) $ \ns -> return ns { refCount = refCount ns + 1 }
   decCount r = modifyMVar_ (nodeState r) $ \ns -> do
-    if ns ^. refCount == 1 && ns ^. destructable
-      then trueFinalize r >> return (ns & refCount .~ 0 & destructable .~ False)
-      else return (ns & refCount -~ 1)
+    if refCount ns == 1 && destructable ns
+      then trueFinalize r >> return ns { refCount = 0, destructable = False }
+      else return ns { refCount = refCount ns - 1 }
 
 type instance RefOf (Root a) = a
 instance Ref (Root a) where

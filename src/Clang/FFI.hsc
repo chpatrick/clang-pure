@@ -22,10 +22,9 @@ import Clang.Context
 import Clang.Refs
 import Clang.Types
 import Control.Exception
-import Control.Lens
-import Control.Lens.Internal (noEffect)
 import Control.Monad
 import Data.Foldable
+import Data.Functor.Contravariant
 import Data.IORef
 import qualified Data.Vector.Storable as VS
 import Foreign
@@ -106,13 +105,15 @@ cursorTranslationUnit (Cursor c) = parent c
 cursorKind :: Cursor -> CursorKind
 cursorKind c = uderef c $ fmap parseCursorKind . #peek CXCursor, kind
 
-cursorChildren :: Fold Cursor Cursor
+cursorChildren :: (Applicative f, Contravariant f) => (Cursor -> f Cursor) -> (Cursor -> f Cursor)
 cursorChildren f c = uderef c $ \cp -> do
-  fRef <- newIORef noEffect
+  -- initialize the "Fold state" with no effect
+  fRef <- newIORef $ phantom $ pure ()
   let 
     visitChild chp = do
       ch <- newLeaf (cursorTranslationUnit c) $ \_ ->
         return ( chp, free chp )
+        -- fold over the new cursor and update the "Fold state"
       modifyIORef' fRef (*> f (Cursor ch))
   [CSafe.exp| void {
     clang_visitChildren(
