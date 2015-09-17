@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module Clang.Refs where
+module Clang.Internal.Refs where
 
 import Control.Concurrent.MVar
 import GHC.ForeignPtr (unsafeForeignPtrToPtr)
@@ -30,16 +30,16 @@ data NodeState = NodeState
   }
 
 type family RefOf n
-class Ref n where
+class Clang n where
   deref :: n -> (Ptr (RefOf n) -> IO a) -> IO a
   unsafeToPtr :: n -> Ptr (RefOf n)
 
-class Ref n => Parent n where
+class Clang n => Parent n where
   incCount :: n -> IO ()
   decCount :: n -> IO ()
 
 type family ParentOf n
-class (Ref n, Parent (ParentOf n)) => Child n where
+class (Clang n, Parent (ParentOf n)) => Child n where
   parent :: n -> ParentOf n
 
 data Root a = Root
@@ -65,7 +65,7 @@ instance Parent (Root a) where
       else return ns { refCount = refCount ns - 1 }
 
 type instance RefOf (Root a) = a
-instance Ref (Root a) where
+instance Clang (Root a) where
   deref r = withForeignPtr (nodePtr r)
   unsafeToPtr = unsafeForeignPtrToPtr . nodePtr
 
@@ -78,7 +78,7 @@ newNode prn f = deref prn $ \pptr -> do
   rt <- newRoot cptr (cfin >> decCount prn)
   return $ Node prn rt
 
-instance Ref p => Parent (Node p a) where
+instance Clang p => Parent (Node p a) where
   incCount (Node _ n) = incCount n
   decCount (Node _ n) = decCount n
 
@@ -87,7 +87,7 @@ instance Parent p => Child (Node p a) where
   parent (Node p _) = p
 
 type instance RefOf (Node p a) = a
-instance Ref p => Ref (Node p a) where
+instance Clang p => Clang (Node p a) where
   deref (Node p n) f = deref p $ \_ -> deref n f
   unsafeToPtr (Node _ n) = unsafeToPtr n
 
@@ -105,15 +105,15 @@ instance Parent p => Child (Leaf p a) where
   parent (Leaf p _) = p
 
 type instance RefOf (Leaf p a) = a
-instance Ref p => Ref (Leaf p a) where
+instance Clang p => Clang (Leaf p a) where
   deref (Leaf p n) f = deref p $ \_ -> withForeignPtr n f
   unsafeToPtr (Leaf _ n) = unsafeForeignPtrToPtr n
 
-pointerEq :: Ref n => n -> n -> Bool
+pointerEq :: Clang n => n -> n -> Bool
 pointerEq r r' = unsafeToPtr r == unsafeToPtr r'
 
-pointerCompare :: Ref n => n -> n -> Ordering
+pointerCompare :: Clang n => n -> n -> Ordering
 pointerCompare r r' = unsafeToPtr r `compare` unsafeToPtr r'
 
-uderef :: Ref r => r -> (Ptr (RefOf r) -> IO a) -> a
+uderef :: Clang r => r -> (Ptr (RefOf r) -> IO a) -> a
 uderef r f = unsafePerformIO $ deref r f

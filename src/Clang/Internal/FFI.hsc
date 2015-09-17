@@ -14,13 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module Clang.FFI where
+module Clang.Internal.FFI where
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
-import Clang.Context
-import Clang.Refs
-import Clang.Types
 import Control.Exception
 import Control.Monad
 import Data.Foldable
@@ -33,6 +30,10 @@ import qualified Language.C.Inline as C hiding (exp, block)
 import qualified Language.C.Inline as CSafe
 import qualified Language.C.Inline.Unsafe as C
 import System.IO.Unsafe
+
+import Clang.Internal.Context
+import Clang.Internal.Refs
+import Clang.Internal.Types
 
 C.context clangCtx
 C.include "stdlib.h"
@@ -105,6 +106,7 @@ cursorTranslationUnit (Cursor c) = parent c
 cursorKind :: Cursor -> CursorKind
 cursorKind c = uderef c $ fmap parseCursorKind . #peek CXCursor, kind
 
+-- | Note: this is a @lens@ @Fold@. Use @toListOf@ to convert this into a function @Cursor -> [ Cursor ]@.
 cursorChildren :: (Applicative f, Contravariant f) => (Cursor -> f Cursor) -> (Cursor -> f Cursor)
 cursorChildren f c = uderef c $ \cp -> do
   -- initialize the "Fold state" with no effect
@@ -242,7 +244,7 @@ instance Eq Type where
     [C.exp| int { clang_equalTypes(*$(CXType *lp), *$(CXType *rp)) } |]
 
 -- Checks for pointer equality, alternatively checks for structural equality with the given function.
-defaultEq :: (Ref r, RefOf r ~ a) => (Ptr a -> Ptr a -> IO CInt) -> r -> r -> Bool
+defaultEq :: (Clang r, RefOf r ~ a) => (Ptr a -> Ptr a -> IO CInt) -> r -> r -> Bool
 defaultEq ne l r
   = l `pointerEq` r || structEq
     where
@@ -522,7 +524,7 @@ typeSpelling t = uderef t $ \tp ->
   withCXString $ \cxsp ->
     [C.exp| void { *$(CXString *cxsp) = clang_getTypeSpelling(*$(CXType *tp)); } |]
 
-instance Ref Token where
+instance Clang Token where
   deref (Token ts i) f
     = deref (tokenSetRef ts) $ f . (`plusPtr` (i * (#size CXToken)))
   unsafeToPtr (Token ts i)
@@ -554,8 +556,8 @@ tokenSetTokens :: TokenSet -> [ Token ]
 tokenSetTokens ts
   = map (Token ts) [0..tokenSetSize ts - 1]
 
-indexTokenSet :: Int -> TokenSet -> Token
-indexTokenSet i ts
+indexTokenSet :: TokenSet -> Int -> Token
+indexTokenSet ts i
   | 0 <= i && i < tokenSetSize ts = Token ts i
   | otherwise = error "Token index out of bounds."
 
@@ -596,4 +598,10 @@ instance Show Type where
     ++ show (typeKind t)
     ++ ", typeSpelling = "
     ++ show (typeSpelling t)
+    ++ "}"
+
+instance Show File where
+  show f =
+    "File { fileName = "
+    ++ show (fileName f)
     ++ "}"

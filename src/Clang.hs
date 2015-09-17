@@ -14,7 +14,35 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module Clang(module C) where
+module Clang(
+  module C,
+  -- * Index
+  ClangIndex(),
+  createIndex,
+  -- * Utilities
+  Clang(),
+  ClangOrd(..)
+  ) where
 
-import Clang.FFI as C
-import Clang.Types as C
+import Clang.Cursor as C
+import Clang.File as C
+import Clang.Location as C
+import Clang.Token as C
+import Clang.TranslationUnit as C
+import Clang.Type as C
+
+import Clang.Internal.FFI
+import Clang.Internal.Refs
+import Clang.Internal.Types
+
+-- | The `Eq` instance for `Clang` types checks structural equality,
+-- i.e. whether they represent the same object in the translation unit.
+--
+-- Wrapping values in this type provides `Eq` and `Ord` instances based on reference equality.
+newtype ClangOrd a = ClangOrd { getOrdered :: a }
+
+instance Clang a => Eq (ClangOrd a) where
+  ClangOrd x == ClangOrd y = x `pointerEq` y
+
+instance Clang a => Ord (ClangOrd a) where
+  ClangOrd x `compare` ClangOrd y = x `pointerCompare` y

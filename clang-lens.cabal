@@ -1,7 +1,9 @@
 name:                  clang-lens
 version:               0.1.0.0
 synopsis:              Pure read-only bindings to libclang
-description:           Pure read-only bindings to libclang
+description:
+  Refer to <http://clang.llvm.org/doxygen/group__CINDEX.html libclang's documentation> for usage.
+  In general, the naming scheme is @clang_getCursorType -> cursorType@, @CXCursor -> `Cursor`@.
 license:               Apache-2.0
 license-file:          LICENSE
 author:                Patrick Chilton
@@ -13,7 +15,17 @@ build-type:            Simple
 cabal-version:         >=1.10
 
 library
-  exposed-modules:     Clang, Clang.Types, Clang.FFI, Clang.Refs
+  exposed-modules:     Clang,
+                       Clang.Cursor,
+                       Clang.File,
+                       Clang.Location,
+                       Clang.Token,
+                       Clang.TranslationUnit,
+                       Clang.Type
+  other-modules:       Clang.Internal.Context,
+                       Clang.Internal.FFI,
+                       Clang.Internal.Refs,
+                       Clang.Internal.Types
   default-extensions:  TypeFamilies,
                        GeneralizedNewtypeDeriving,
                        TemplateHaskell,
@@ -34,7 +46,7 @@ library
   hs-source-dirs:      src/
   build-tools:         hsc2hs
   default-language:    Haskell2010
-  c-sources:           src/Clang/FFI.c
+  c-sources:           src/Clang/Internal/FFI.c
   include-dirs:        /usr/lib/llvm-3.5/include cbits/
   cc-options:          -Wall
   ld-options:          -lclang-3.5

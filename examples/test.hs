@@ -23,15 +23,13 @@ import Control.Lens
 import qualified Data.ByteString.Char8 as BS
 import Data.Monoid
 import Data.Tree
+import Data.Tree
 
 main = do
   idx <- createIndex
   tu <- parseTranslationUnit idx "examples/test.c" []
   let
-    inFile c = ((isFromMainFile . rangeStart) <$> cursorExtent c) == Just True
     root = translationUnitCursor tu
-    allNodes :: Fold Cursor Cursor
-    allNodes = cosmosOf (cursorChildren . filtered inFile)
     funDecs =
       root ^..
         cosmosOf cursorChildren

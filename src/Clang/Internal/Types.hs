@@ -14,29 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module Clang.Types where
+module Clang.Internal.Types where
 
 import Foreign
 
-import Clang.Refs
-
--- The default instance of Eq for Clang types does structural equality,
--- i.e. it checks whether they represent the same AST object.
--- This is inconsistent with an Ord instance, so if you need ordering
--- then wrap them up in this type.
-newtype Ordered a = Ordered { getOrdered :: a }
-
-instance Ref a => Eq (Ordered a) where
-  Ordered x == Ordered y = x `pointerEq` y
-
-instance Ref a => Ord (Ordered a) where
-  Ordered x `compare` Ordered y = x `pointerCompare` y
+import Clang.Internal.Refs
 
 data CXIndexImpl
 type CXIndex = Ptr CXIndexImpl
 type instance RefOf ClangIndex = CXIndexImpl
 newtype ClangIndex = ClangIndex (Root CXIndexImpl)
-  deriving (Parent, Ref)
+  deriving (Parent, Clang)
 
 instance Eq ClangIndex where (==) = pointerEq
 
@@ -45,7 +33,7 @@ type CXTranslationUnit = Ptr CXTranslationUnitImpl
 type instance RefOf TranslationUnit = CXTranslationUnitImpl
 type instance ParentOf TranslationUnit = ClangIndex
 newtype TranslationUnit = TranslationUnitRef (Node ClangIndex CXTranslationUnitImpl)
-  deriving (Parent, Child, Ref)
+  deriving (Parent, Child, Clang)
 
 instance Eq TranslationUnit where (==) = pointerEq
 
@@ -53,21 +41,21 @@ data CXCursor
 type instance RefOf Cursor = CXCursor
 type instance ParentOf Cursor = TranslationUnit
 newtype Cursor = Cursor (Leaf TranslationUnit CXCursor)
-  deriving (Child, Ref)
+  deriving (Child, Clang)
 
 data CXSourceRange
 type instance RefOf SourceRange = CXSourceRange
 type instance ParentOf SourceRange = TranslationUnit
 newtype SourceRange
   = SourceRange (Leaf TranslationUnit CXSourceRange)
-  deriving (Child, Ref)
+  deriving (Child, Clang)
 
 data CXSourceLocation
 type instance RefOf SourceLocation = CXSourceLocation
 type instance ParentOf SourceLocation = TranslationUnit
 newtype SourceLocation
   = SourceLocation (Leaf TranslationUnit CXSourceLocation)
-  deriving (Child, Ref)
+  deriving (Child, Clang)
 
 data CXFileImpl
 type CXFile = Ptr CXFileImpl
@@ -75,7 +63,7 @@ type instance RefOf File = CXFileImpl
 type instance ParentOf File = TranslationUnit
 newtype File
   = File (Leaf TranslationUnit CXFileImpl)
-  deriving (Child, Ref)
+  deriving (Child, Clang)
 
 instance Eq File where (==) = pointerEq
 
@@ -337,7 +325,7 @@ data CXType
 type instance RefOf Type = CXType
 type instance ParentOf Type = TranslationUnit
 newtype Type = Type (Leaf TranslationUnit CXType)
-  deriving (Child, Ref)
+  deriving (Child, Clang)
 
 data CXToken
 data TokenSet = TokenSet 
