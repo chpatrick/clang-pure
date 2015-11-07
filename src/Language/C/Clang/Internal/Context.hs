@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module Clang.Internal.Context where
+module Language.C.Clang.Internal.Context where
 
 import qualified Data.Map as M
 import Data.Monoid
@@ -23,7 +23,7 @@ import qualified Language.C.Inline.Context as C
 import qualified Language.C.Types as C
 import qualified Language.Haskell.TH as TH
 
-import Clang.Internal.Types
+import Language.C.Clang.Internal.Types
 
 clangTypesTable :: M.Map C.TypeSpecifier TH.TypeQ
 clangTypesTable = M.fromList

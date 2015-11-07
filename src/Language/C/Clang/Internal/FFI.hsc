@@ -14,7 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module Clang.Internal.FFI where
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
+module Language.C.Clang.Internal.FFI where
 
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
@@ -31,9 +33,9 @@ import qualified Language.C.Inline as CSafe
 import qualified Language.C.Inline.Unsafe as C
 import System.IO.Unsafe
 
-import Clang.Internal.Context
-import Clang.Internal.Refs
-import Clang.Internal.Types
+import Language.C.Clang.Internal.Context
+import Language.C.Clang.Internal.Refs
+import Language.C.Clang.Internal.Types
 
 C.context clangCtx
 C.include "stdlib.h"
@@ -529,7 +531,6 @@ instance Clang Token where
     = deref (tokenSetRef ts) $ f . (`plusPtr` (i * (#size CXToken)))
   unsafeToPtr (Token ts i)
      = unsafeToPtr (tokenSetRef ts) `plusPtr` (i * (#size CXToken))
-
 instance Child Token where
   parent (Token ts _) = parent (tokenSetRef ts)
 

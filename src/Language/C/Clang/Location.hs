@@ -14,15 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module Clang.Token
-  ( TokenSet()
-  , Token()
-  , tokenize
-  , tokenSetTokens
-  , indexTokenSet
-  , tokenSpelling
+{-# OPTIONS_GHC -fno-warn-orphans #-}
+
+module Language.C.Clang.Location
+  ( SourceRange()
+  , rangeStart, rangeEnd
+  , SourceLocation()
+  , spellingLocation
+  , isInSystemHeader
+  , isFromMainFile
+  , Location(..)
   )
 where
 
-import Clang.Internal.FFI
-import Clang.Internal.Types
+import Language.C.Clang.Internal.FFI
+import Language.C.Clang.Internal.Types
+
+deriving instance Eq Location
+deriving instance Show Location

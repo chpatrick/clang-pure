@@ -14,13 +14,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module Clang.Type
-  ( Type()
-  , typeSpelling
-  , typeKind
-  , TypeKind(..)
+module Language.C.Clang.Token
+  ( TokenSet()
+  , Token()
+  , tokenize
+  , tokenSetTokens
+  , indexTokenSet
+  , tokenSpelling
   )
 where
 
-import Clang.Internal.FFI
-import Clang.Internal.Types
+import Language.C.Clang.Internal.FFI
+import Language.C.Clang.Internal.Types

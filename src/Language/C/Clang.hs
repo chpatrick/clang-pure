@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module Clang(
+module Language.C.Clang (
   module C,
   -- * Index
   ClangIndex(),
@@ -24,16 +24,16 @@ module Clang(
   ClangOrd(..)
   ) where
 
-import Clang.Cursor as C
-import Clang.File as C
-import Clang.Location as C
-import Clang.Token as C
-import Clang.TranslationUnit as C
-import Clang.Type as C
+import Language.C.Clang.Cursor as C
+import Language.C.Clang.File as C
+import Language.C.Clang.Location as C
+import Language.C.Clang.Token as C
+import Language.C.Clang.TranslationUnit as C
+import Language.C.Clang.Type as C
 
-import Clang.Internal.FFI
-import Clang.Internal.Refs
-import Clang.Internal.Types
+import Language.C.Clang.Internal.FFI
+import Language.C.Clang.Internal.Refs
+import Language.C.Clang.Internal.Types
 
 -- | The `Eq` instance for `Clang` types checks structural equality,
 -- i.e. whether they represent the same object in the translation unit.

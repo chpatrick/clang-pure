@@ -14,12 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module Clang.File
-  ( File()
-  , getFile
-  , fileName
+module Language.C.Clang.TranslationUnit
+  ( TranslationUnit()
+  , parseTranslationUnit
+  , translationUnitCursor
   )
 where
 
-import Clang.Internal.FFI
-import Clang.Internal.Types
+import Language.C.Clang.Internal.FFI
+import Language.C.Clang.Internal.Types

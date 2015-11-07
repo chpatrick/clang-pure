@@ -14,19 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module Clang.Cursor
-  ( Cursor()
-  , cursorTranslationUnit
-  , cursorChildren
-  , cursorSpelling
-  , cursorExtent
-  , cursorUSR
-  , cursorReferenced
-  , cursorType
-  , cursorKind
-  , CursorKind(..)
+module Language.C.Clang.File
+  ( File()
+  , getFile
+  , fileName
   )
 where
 
-import Clang.Internal.FFI
-import Clang.Internal.Types
+import Language.C.Clang.Internal.FFI
+import Language.C.Clang.Internal.Types

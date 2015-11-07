@@ -14,19 +14,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module Clang.Location
-  ( SourceRange()
-  , rangeStart, rangeEnd
-  , SourceLocation()
-  , spellingLocation
-  , isInSystemHeader
-  , isFromMainFile
-  , Location(..)
+module Language.C.Clang.Cursor
+  ( Cursor()
+  , cursorTranslationUnit
+  , cursorChildren
+  , cursorSpelling
+  , cursorExtent
+  , cursorUSR
+  , cursorReferenced
+  , cursorType
+  , cursorKind
+  , CursorKind(..)
   )
 where
 
-import Clang.Internal.FFI
-import Clang.Internal.Types
-
-deriving instance Eq Location
-deriving instance Show Location
+import Language.C.Clang.Internal.FFI
+import Language.C.Clang.Internal.Types

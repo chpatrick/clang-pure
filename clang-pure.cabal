@@ -1,7 +1,9 @@
-name:                  clang-lens
+name:                  clang-pure
 version:               0.1.0.0
-synopsis:              Pure read-only bindings to libclang
+synopsis:              Pure C++ code analysis with libclang
 description:
+  Pure C++ code analysis with libclang.
+  .
   Refer to <http://clang.llvm.org/doxygen/group__CINDEX.html libclang's documentation> for usage.
   In general, the naming scheme is @clang_getCursorType -> cursorType@, @CXCursor -> `Cursor`@.
 license:               Apache-2.0
@@ -13,19 +15,24 @@ category:              Language
 build-type:            Simple
 -- extra-source-files:  
 cabal-version:         >=1.10
+extra-source-files:  cbits/utils.h
+
+source-repository head
+  type: git
+  location: https://github.com/chpatrick/clang-pure.git
 
 library
-  exposed-modules:     Clang,
-                       Clang.Cursor,
-                       Clang.File,
-                       Clang.Location,
-                       Clang.Token,
-                       Clang.TranslationUnit,
-                       Clang.Type
-  other-modules:       Clang.Internal.Context,
-                       Clang.Internal.FFI,
-                       Clang.Internal.Refs,
-                       Clang.Internal.Types
+  exposed-modules:     Language.C.Clang,
+                       Language.C.Clang.Cursor,
+                       Language.C.Clang.File,
+                       Language.C.Clang.Location,
+                       Language.C.Clang.Token,
+                       Language.C.Clang.TranslationUnit,
+                       Language.C.Clang.Type
+  other-modules:       Language.C.Clang.Internal.Context,
+                       Language.C.Clang.Internal.FFI,
+                       Language.C.Clang.Internal.Refs,
+                       Language.C.Clang.Internal.Types
   default-extensions:  TypeFamilies,
                        GeneralizedNewtypeDeriving,
                        TemplateHaskell,
@@ -46,15 +53,8 @@ library
   hs-source-dirs:      src/
   build-tools:         hsc2hs
   default-language:    Haskell2010
-  c-sources:           src/Clang/Internal/FFI.c
-  include-dirs:        /usr/lib/llvm-3.5/include cbits/
+  c-sources:           src/Language/C/Clang/Internal/FFI.c
+  include-dirs:        cbits/
   cc-options:          -Wall
-  ld-options:          -lclang-3.5
-  extra-libraries:     clang-3.5
+  extra-libraries:     clang
   ghc-options:         -Wall -O2
-
-executable test
-  hs-source-dirs: examples
-  main-is: test.hs
-  default-language:    Haskell2010
-  build-depends: base >= 4.8, clang-lens, lens, containers, bytestring

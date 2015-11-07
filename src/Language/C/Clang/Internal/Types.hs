@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module Clang.Internal.Types where
+module Language.C.Clang.Internal.Types where
 
 import Foreign
 
-import Clang.Internal.Refs
+import Language.C.Clang.Internal.Refs
 
 data CXIndexImpl
 type CXIndex = Ptr CXIndexImpl
@@ -328,7 +328,7 @@ newtype Type = Type (Leaf TranslationUnit CXType)
   deriving (Child, Clang)
 
 data CXToken
-data TokenSet = TokenSet 
+data TokenSet = TokenSet
   { tokenSetRef :: Leaf TranslationUnit CXToken
   , tokenSetSize :: Int
   }
