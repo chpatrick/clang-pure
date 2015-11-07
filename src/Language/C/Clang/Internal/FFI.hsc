@@ -108,9 +108,9 @@ cursorTranslationUnit (Cursor c) = parent c
 cursorKind :: Cursor -> CursorKind
 cursorKind c = uderef c $ fmap parseCursorKind . #peek CXCursor, kind
 
--- | Note: this is a @lens@ @Fold@. Use @toListOf@ to convert this into a function @Cursor -> [ Cursor ]@.
-cursorChildren :: (Applicative f, Contravariant f) => (Cursor -> f Cursor) -> (Cursor -> f Cursor)
-cursorChildren f c = uderef c $ \cp -> do
+-- | Fold over the children of a cursor in the `lens` sense.
+cursorChildrenF :: (Applicative f, Contravariant f) => (Cursor -> f Cursor) -> (Cursor -> f Cursor)
+cursorChildrenF f c = uderef c $ \cp -> do
   -- initialize the "Fold state" with no effect
   fRef <- newIORef $ phantom $ pure ()
   let 

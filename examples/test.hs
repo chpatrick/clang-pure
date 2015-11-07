@@ -16,7 +16,7 @@ limitations under the License.
 
 {-# LANGUAGE PatternSynonyms, ViewPatterns, RankNTypes, LambdaCase, TupleSections #-}
 
-import Clang
+import Language.C.Clang
 import Data.Foldable
 import Data.Function
 import Control.Lens
@@ -27,12 +27,12 @@ import Data.Tree
 
 main = do
   idx <- createIndex
-  tu <- parseTranslationUnit idx "examples/test.c" []
+  tu <- parseTranslationUnit idx "test.c" []
   let
     root = translationUnitCursor tu
     funDecs =
       root ^..
-        cosmosOf cursorChildren
+        cosmosOf cursorChildrenF
         . filtered (\c -> cursorKind c == FunctionDecl)
         . folding (\c -> ( cursorSpelling c, ) <$> (typeSpelling <$> cursorType c))
   for_ funDecs $ \(f, t) -> putStrLn $ BS.unpack f ++ " :: " ++ BS.unpack t

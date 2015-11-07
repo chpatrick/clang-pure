@@ -17,6 +17,7 @@ limitations under the License.
 module Language.C.Clang.Cursor
   ( Cursor()
   , cursorTranslationUnit
+  , cursorChildrenF
   , cursorChildren
   , cursorSpelling
   , cursorExtent
@@ -30,3 +31,10 @@ where
 
 import Language.C.Clang.Internal.FFI
 import Language.C.Clang.Internal.Types
+
+import Control.Applicative
+import Data.Monoid
+
+cursorChildren :: Cursor -> [ Cursor ]
+cursorChildren
+  = (`appEndo` []) . getConst . cursorChildrenF (\c -> Const $ Endo (c:))
