@@ -1,7 +1,9 @@
-# Pure bindings to libclang
+# Pure Haskell bindings to [libclang]
 
 A Haskell library for pure C++ code analysis with some light `lens` support
 
 ```haskell
 gotoCount = lengthOf (allNodes . filtered (\c -> cursorKind c == GotoStmt)) root
 ```
+
+[libclang]: http://clang.llvm.org/doxygen/group__CINDEX.html
