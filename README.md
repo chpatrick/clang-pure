@@ -25,7 +25,7 @@ main = do
     let root = translationUnitCursor tu
         children = cursorChildren root
         functionDecls = filter (\c -> cursorKind c == FunctionDecl) children
-    forM_ functionDecls $ \f -> print $ cursorSpelling f
+    forM_ functionDecls (print . cursorSpelling)
 ```
 
 [libclang]: http://clang.llvm.org/doxygen/group__CINDEX.html
