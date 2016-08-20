@@ -12,7 +12,7 @@ author:                Patrick Chilton
 maintainer:            chpatrick@gmail.com
 copyright:             Copyright 2014 Google Inc. All Rights Reserved.
 category:              Language
-build-type:            Simple
+build-type:            Custom
 -- extra-source-files:  
 cabal-version:         >=1.10
 extra-source-files:  cbits/utils.h
