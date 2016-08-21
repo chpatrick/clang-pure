@@ -28,4 +28,9 @@ main = do
     forM_ functionDecls (print . cursorSpelling)
 ```
 
+## Development
+
+[View development guide][building]
+
+[building]: DEV.md
 [libclang]: http://clang.llvm.org/doxygen/group__CINDEX.html
