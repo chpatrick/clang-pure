@@ -21,17 +21,13 @@ module Main (main) where
 
 import Control.Exception
 import Control.Monad
-#ifndef mingw32_HOST_OS
-import Data.Maybe
-#endif
 import Distribution.PackageDescription
 import Distribution.Simple
 import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.Setup
-import System.Directory
 import System.Environment
-import System.FilePath
 import System.IO.Error
+import System.Process
 
 data SetupException = SetupException String deriving Show
 
@@ -42,62 +38,36 @@ data LLVMPathInfo = LLVMPathInfo
     , llvmIncludeDir :: FilePath
     }
 
-llvmDirEnvVarName :: String
-llvmDirEnvVarName = "CLANG_PURE_LLVM_DIR"
+llvmLibDirEnvVarName :: String
+llvmLibDirEnvVarName = "CLANG_PURE_LLVM_LIB_DIR"
 
-libraryExtension :: String
-#ifdef mingw32_HOST_OS
-libraryExtension = ".dll"
-#elif darwin_HOST_OS
-libraryExtension = ".dylib"
-#else
-libraryExtension = ".so"
-#endif
+llvmIncludeDirEnvVarName :: String
+llvmIncludeDirEnvVarName = "CLANG_PURE_LLVM_INCLUDE_DIR"
 
-getRecursiveContents :: FilePath -> IO [FilePath]
-getRecursiveContents dir = do
-    allNames <- getDirectoryContents dir `catch` (\e -> if isPermissionError e then return [] else throw e)
-    let names = filter (`notElem` [".", ".."]) allNames
-    paths <- forM names $ \name -> do
-        let path = dir </> name
-        isDirectory <- doesDirectoryExist path
-        if isDirectory
-           then getRecursiveContents path
-           else return [path]
-    return (concat paths)
-
-findFileRecursive :: FilePath -> String -> IO FilePath
-findFileRecursive dir fileName = do
-    paths <- getRecursiveContents dir
-    let matches = filter (\p -> takeFileName p == fileName) paths
-    case matches of
-         [] -> throw $ SetupException ("Could not find " ++ fileName ++ " under " ++ dir)
-         firstMatch : _ -> return firstMatch
-
-getLLVMRootDir :: IO FilePath
-#ifdef mingw32_HOST_OS
-getLLVMRootDir = do
-    maybeOverride <- lookupEnv llvmDirEnvVarName
-    case maybeOverride of
-        Nothing -> do
-            programFilesDir <- getEnv "PROGRAMFILES"
-            return $ programFilesDir </> "LLVM"
-        Just llvmRootDir -> return llvmRootDir
-#else
-getLLVMRootDir = do
-    maybeOverride <- lookupEnv llvmDirEnvVarName
-    let llvmRootDir = fromMaybe "/usr" maybeOverride
-    return llvmRootDir
-#endif
+findLLVMConfigPaths :: IO LLVMPathInfo
+findLLVMConfigPaths = do
+    let llvmConfigCandidates =
+            "llvm-config" : [ "llvm-config-" ++ show major ++ "." ++ show minor
+                            | major <- [9,8..3 :: Int]
+                            , minor <- [9,8..0 :: Int]
+                            ]
+    let tryCandidates [] = throwIO $ SetupException "Could not find llvm-config."
+        tryCandidates (llvmConfig : candidates) = do
+            llvmConfigResult <- tryJust (guard . isDoesNotExistError) (readProcess llvmConfig ["--libdir", "--includedir"] "")
+            case llvmConfigResult of
+                Left _ -> tryCandidates candidates
+                Right llvmConfigOutput -> case lines llvmConfigOutput of
+                    [ libraryDir, includeDir ] -> return $ LLVMPathInfo libraryDir includeDir
+                    _ -> throwIO $ SetupException "Unexpected llvm-config output."
+    tryCandidates llvmConfigCandidates
 
 getLLVMPathInfo :: IO LLVMPathInfo
 getLLVMPathInfo = do
-    llvmRootDir <- getLLVMRootDir
-    libclangPath <- findFileRecursive llvmRootDir ("libclang" -<.> libraryExtension)
-    let libraryDir = takeDirectory libclangPath
-    indexHeaderPath <- findFileRecursive llvmRootDir "Index.h"
-    let includeDir = takeDirectory $ takeDirectory indexHeaderPath
-    return $ LLVMPathInfo libraryDir includeDir
+    m'llvmLibDirEnvVar <- lookupEnv llvmLibDirEnvVarName
+    m'llvmIncludeDirEnvVar <- lookupEnv llvmIncludeDirEnvVarName
+    case (m'llvmLibDirEnvVar, m'llvmIncludeDirEnvVar) of
+        ( Just libraryDir, Just includeDir ) -> return $ LLVMPathInfo libraryDir includeDir
+        _ -> findLLVMConfigPaths
 
 clangPureConfHook :: (GenericPackageDescription, HookedBuildInfo) -> ConfigFlags -> IO LocalBuildInfo
 clangPureConfHook (d, bi) flags = do
