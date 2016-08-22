@@ -84,6 +84,12 @@ clangPureConfHook (d, bi) flags = do
                 libBuildInfo = lbi
                 { includeDirs = llvmIncludeDir : includeDirs lbi
                 , extraLibDirs = llvmLibraryDir : extraLibDirs lbi
+                , cSources =
+#ifdef mingw32_HOST_OS
+                      ["srcLanguageCClangInternalFFI.c"] -- work around a bug in inline-c (?)
+#else
+                      ["src/Language/C/Clang/Internal/FFI.c"]
+#endif
                 }
             }
         }

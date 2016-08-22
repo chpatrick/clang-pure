@@ -53,10 +53,6 @@ library
   hs-source-dirs:      src/
   build-tools:         hsc2hs
   default-language:    Haskell2010
-  if os(windows)
-    c-sources:         srcLanguageCClangInternalFFI.c
-  else
-    c-sources:         src/Language/C/Clang/Internal/FFI.c
   include-dirs:        cbits/
   cc-options:          -Wall
   extra-libraries:     clang
