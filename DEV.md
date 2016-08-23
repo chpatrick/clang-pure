@@ -45,18 +45,19 @@ $ stack build
 
 If the setup script is unable to detect your LLVM/libclang library paths
 automatically, you can override the default search location using the
-`CLANG_PURE_LLVM_DIR` and then re-run the build.
+`CLANG_PURE_LLVM_INCLUDE_DIR` and `CLANG_PURE_LLVM_LIB_DIR` variables and then re-run the build.
 
 On Linux or Mac OS X:
 
 ```bash
-$ CLANG_PURE_LLVM_DIR=/path/to/llvm stack build
+$ CLANG_PURE_LLVM_INCLUDE_DIR=/path/to/llvm/include CLANG_PURE_LLVM_LIB_DIR=/path/to/llvm/lib stack build
 ```
 
 On Windows:
 
 ```cmd
-> set CLANG_PURE_LLVM_DIR=C:\Path\To\LLVM
+> set CLANG_PURE_LLVM_INCLUDE_DIR=C:\Path\To\LLVM\include
+> set CLANG_PURE_LLVM_LIB_DIR=C:\Path\To\LLVM\bin
 > stack build
 ```
 
