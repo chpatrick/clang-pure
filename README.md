@@ -1,4 +1,5 @@
-# Pure Haskell bindings to [libclang] [![Build Status](https://travis-ci.org/chpatrick/clang-pure.svg?branch=travis)](https://travis-ci.org/chpatrick/clang-pure)
+# Pure Haskell bindings to [libclang](http://clang.llvm.org/doxygen/group__CINDEX.html)
+[![Hackage](https://img.shields.io/hackage/v/clang-pure.svg)](http://hackage.haskell.org/package/clang-pure) [![Build Status](https://travis-ci.org/chpatrick/clang-pure.svg?branch=master)](https://travis-ci.org/chpatrick/clang-pure)
 
 A Haskell library for pure C++ code analysis with some light `lens` support
 
