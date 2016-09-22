@@ -47,9 +47,13 @@ import           Language.C.Clang.Location
 import           Language.C.Clang.Type
 import           Language.C.Clang.TranslationUnit
 
-import           Language.C.Clang.Internal.Types (CursorK(..))
+import           Language.C.Clang.Internal.Refs (Clang)
 
--- | Match a `Cursor` as a particular `CursorKind`. You can use the @TypeApplications@ extension to easily specify the CursorKind you want: @matchKind \@'StructDecl@.
+-- | A `Cursor` with a statically known `CursorKind`.
+newtype CursorK (kind :: CursorKind) = CursorK { withoutKind :: Cursor }
+  deriving (Eq, Clang)
+
+-- | Match a `Cursor` as a particular `CursorKind`. You can use the @TypeApplications@ extension to easily specify the `CursorKind` you want: @matchKind \@'StructDecl@.
 matchKind :: forall kind. SingI kind => Cursor -> Maybe (CursorK kind)
 matchKind c
   | cursorKind c == fromSing (sing :: Sing kind) = Just (CursorK c)

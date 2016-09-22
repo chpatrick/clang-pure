@@ -15,7 +15,6 @@ limitations under the License.
 -}
 
 {-# OPTIONS_GHC -fno-warn-orphans -fno-warn-overlapping-patterns #-}
-{-# LANGUAGE DataKinds #-}
 
 module Language.C.Clang.Internal.FFI where
 
@@ -234,8 +233,6 @@ fileName f = uderef f $ \fp -> withCXString $ \cxsp ->
 instance Eq Cursor where
   (==) = defaultEq $ \lp rp ->
     [C.exp| int { clang_equalCursors(*$(CXCursor *lp), *$(CXCursor *rp)) } |]
-
-deriving instance Eq (CursorK kind)
 
 instance Eq SourceRange where
   (==) = defaultEq $ \lp rp ->

@@ -48,10 +48,6 @@ type instance ParentOf Cursor = TranslationUnit
 newtype Cursor = Cursor (Leaf TranslationUnit CXCursor)
   deriving (Child, Clang)
 
--- | A `Cursor` with a statically known `CursorKind`.
-newtype CursorK (kind :: CursorKind) = CursorK { withoutKind :: Cursor }
-  deriving (Clang)
-
 data CXSourceRange
 type instance RefOf SourceRange = CXSourceRange
 type instance ParentOf SourceRange = TranslationUnit
