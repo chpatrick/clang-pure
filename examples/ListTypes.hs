@@ -21,12 +21,11 @@ limitations under the License.
 {-# LANGUAGE TupleSections #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 import           Language.C.Clang
 import qualified Language.C.Clang.Cursor as UT
 import           Language.C.Clang.Cursor.Typed
-import           Data.Foldable
-import           Data.Function
 import           Control.Lens
 import qualified Data.ByteString.Char8 as BS
 import           Data.Monoid
@@ -40,10 +39,10 @@ main = do
       idx <- createIndex
       tu <- parseTranslationUnit idx path clangArgs
       let funDecs =
-            translationUnitCursor tu ^..
-              cosmosOnOf cursorChildrenF UT.cursorChildrenF
-              . folding (matchKind @'FunctionDecl)
-              . to (\fd -> ( cursorSpelling fd, cursorType fd ) )
-      for_ funDecs $ \( f, t ) -> putStrLn $ BS.unpack f ++ " :: " ++ BS.unpack (typeSpelling t)
+              cosmosOnOf cursorChildrenF UT.cursorChildrenF         -- fold over cursors recursively
+            . folding (matchKind @'FunctionDecl)                    -- find only FunctionDecls...
+            . filtered (isFromMainFile . rangeStart . cursorExtent) -- ...that are actually in the given file
+            . to (\funDec -> cursorSpelling funDec <> " :: " <> typeSpelling (cursorType funDec))
+      BS.putStrLn $ BS.unlines (translationUnitCursor tu ^.. funDecs)
 
     _ -> putStrLn "usage: list-fun-types path [clang opts]"
