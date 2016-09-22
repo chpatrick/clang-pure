@@ -1,5 +1,6 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module Main where
 
@@ -18,12 +19,17 @@ import           System.Environment
 deriving instance Generic CursorKind
 instance Hashable CursorKind
 
-classes :: [ ( String, Cursor -> Bool ) ]
-classes =
-  [ ( "HasType", isJust . cursorType )
-  , ( "HasChildren", notNullOf cursorChildrenF )
-  , ( "HasExtent", isJust . cursorExtent )
-  , ( "HasSpelling", not . BS.null . cursorSpelling )
+data HasClass = HasClass
+  { combineResults :: Bool -> Bool -> Bool
+  , predicate :: Cursor -> Bool
+  }
+
+classes :: HMS.HashMap String HasClass
+classes = HMS.fromList
+  [ ( "HasType",     HasClass (&&) (isJust . cursorType)            )
+  , ( "HasChildren", HasClass (||) (notNullOf cursorChildrenF)      )
+  , ( "HasExtent",   HasClass (&&) (isJust . cursorExtent)          )
+  , ( "HasSpelling", HasClass (&&) (not . BS.null . cursorSpelling) )
   ]
 
 main :: IO ()
@@ -40,10 +46,10 @@ main = do
         let root = translationUnitCursor tu
         return $ HMS.fromList
           [ ( className, findClass predicate root )
-          | ( className, predicate ) <- classes
+          | ( className, predicate ) <- HMS.toList classes
           ]
 
-      let classResults = foldl1' (HMS.unionWith (HMS.unionWith (&&))) pathClassResults
+      let classResults = foldl1' (HMS.unionWithKey $ \className -> HMS.unionWith (combineResults (classes HMS.! className))) pathClassResults
 
       let allInstances =
             intercalate "\n"
@@ -55,7 +61,7 @@ main = do
 
       putStrLn allInstances
 
-findClass :: (Cursor -> Bool) -> Cursor -> HMS.HashMap CursorKind Bool
-findClass predicate root = HMS.fromListWith (&&) kindResults
+findClass :: HasClass -> Cursor -> HMS.HashMap CursorKind Bool
+findClass HasClass {..} root = HMS.fromListWith combineResults kindResults
   where
     kindResults = root ^.. cosmosOf cursorChildrenF . to (\c -> ( cursorKind c, predicate c ) )
