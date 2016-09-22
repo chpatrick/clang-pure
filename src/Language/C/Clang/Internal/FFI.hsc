@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# OPTIONS_GHC -fno-warn-orphans -fno-warn-overlapping-patterns #-}
+{-# LANGUAGE DataKinds #-}
 
 module Language.C.Clang.Internal.FFI where
 
@@ -32,6 +33,7 @@ import qualified Language.C.Inline as C hiding (exp, block)
 import qualified Language.C.Inline as CSafe
 import qualified Language.C.Inline.Unsafe as C
 import System.IO.Unsafe
+import Lens.Micro.Contra
 
 import Language.C.Clang.Internal.Context
 import Language.C.Clang.Internal.Refs
@@ -109,7 +111,7 @@ cursorKind :: Cursor -> CursorKind
 cursorKind c = uderef c $ fmap parseCursorKind . #peek CXCursor, kind
 
 -- | Fold over the children of a cursor in the `lens` sense.
-cursorChildrenF :: (Applicative f, Contravariant f) => (Cursor -> f Cursor) -> (Cursor -> f Cursor)
+cursorChildrenF :: Fold Cursor Cursor
 cursorChildrenF f c = uderef c $ \cp -> do
   -- initialize the "Fold state" with no effect
   fRef <- newIORef $ phantom $ pure ()
@@ -232,6 +234,8 @@ fileName f = uderef f $ \fp -> withCXString $ \cxsp ->
 instance Eq Cursor where
   (==) = defaultEq $ \lp rp ->
     [C.exp| int { clang_equalCursors(*$(CXCursor *lp), *$(CXCursor *rp)) } |]
+
+deriving instance Eq (CursorK kind)
 
 instance Eq SourceRange where
   (==) = defaultEq $ \lp rp ->

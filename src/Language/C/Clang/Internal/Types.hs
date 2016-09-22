@@ -14,8 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE ExistentialQuantification #-}
+
 module Language.C.Clang.Internal.Types where
 
+import Data.Singletons.TH
 import Foreign
 
 import Language.C.Clang.Internal.Refs
@@ -42,6 +47,10 @@ type instance RefOf Cursor = CXCursor
 type instance ParentOf Cursor = TranslationUnit
 newtype Cursor = Cursor (Leaf TranslationUnit CXCursor)
   deriving (Child, Clang)
+
+-- | A `Cursor` with a statically known `CursorKind`.
+newtype CursorK (kind :: CursorKind) = CursorK { withoutKind :: Cursor }
+  deriving (Clang)
 
 data CXSourceRange
 type instance RefOf SourceRange = CXSourceRange
@@ -267,6 +276,8 @@ data CursorKind
   | FirstExtraDecl
   | LastExtraDecl
   deriving (Eq, Ord, Show)
+
+genSingletons [''CursorKind]
 
 data TypeKind
   = Invalid

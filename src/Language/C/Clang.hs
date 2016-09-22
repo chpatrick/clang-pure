@@ -24,7 +24,6 @@ module Language.C.Clang (
   ClangOrd(..)
   ) where
 
-import Language.C.Clang.Cursor as C
 import Language.C.Clang.File as C
 import Language.C.Clang.Location as C
 import Language.C.Clang.Token as C

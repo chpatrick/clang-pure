@@ -17,7 +17,6 @@ limitations under the License.
 module Language.C.Clang.TranslationUnit
   ( TranslationUnit()
   , parseTranslationUnit
-  , translationUnitCursor
   )
 where
 

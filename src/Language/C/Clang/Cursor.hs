@@ -14,8 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
+{-|
+Module      :  Language.C.Clang.Cursor
+Copyright   :  (C) 2016 Patrick Chilton
+
+If you know what `CursorKind`s you want to operate on,
+consider using "Language.C.Clang.Cursor.Typed" instead.
+-}
 module Language.C.Clang.Cursor
   ( Cursor()
+  , translationUnitCursor
   , cursorTranslationUnit
   , cursorChildrenF
   , cursorChildren
@@ -32,9 +40,7 @@ where
 import Language.C.Clang.Internal.FFI
 import Language.C.Clang.Internal.Types
 
-import Control.Applicative
-import Data.Monoid
+import Lens.Micro
 
 cursorChildren :: Cursor -> [ Cursor ]
-cursorChildren
-  = (`appEndo` []) . getConst . cursorChildrenF (\c -> Const $ Endo (c:))
+cursorChildren = toListOf cursorChildrenF
