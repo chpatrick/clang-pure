@@ -13,7 +13,8 @@ that you don't need to check whether a `Cursor` has a given property at runtime.
 -}
 module Language.C.Clang.Cursor.Typed
   ( Cursor
-  , CursorK(..)
+  , CursorK()
+  , withoutKind
   , matchKind
 
   , translationUnitCursor
