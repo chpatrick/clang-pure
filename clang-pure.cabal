@@ -1,5 +1,5 @@
 name:                  clang-pure
-version:               0.1.0.1
+version:               0.1.0.3
 synopsis:              Pure C++ code analysis with libclang
 description:
   Pure C++ code analysis with libclang.
