@@ -59,18 +59,24 @@ library
   include-dirs:        cbits/
   cc-options:          -Wall
   extra-libraries:     clang
-  ghc-options:         -Wall -O2 -fno-warn-redundant-constraints
+  ghc-options:         -Wall -O2
+  if impl(ghc >= 8.0.0)
+    ghc-options: -fno-warn-redundant-constraints
 
 executable find-classes
   main-is:             FindClasses.hs
   build-depends:       base, clang-pure, lens, unordered-containers, hashable, bytestring
   hs-source-dirs:      app
   buildable:           False
-  ghc-options:         -Wall -O2 -fno-warn-redundant-constraints -fno-warn-orphans
+  ghc-options:         -Wall -O2 -fno-warn-orphans
+  if impl(ghc >= 8.0.0)
+    ghc-options: -fno-warn-redundant-constraints
 
 executable list-fun-types
   main-is:             ListTypes.hs
   build-depends:       base, clang-pure, lens, bytestring
   hs-source-dirs:      examples
   buildable:           False
-  ghc-options:         -Wall -O2 -fno-warn-redundant-constraints
+  ghc-options:         -Wall -O2
+  if impl(ghc >= 8.0.0)
+    ghc-options: -fno-warn-redundant-constraints
