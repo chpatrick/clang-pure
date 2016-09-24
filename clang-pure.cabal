@@ -50,8 +50,8 @@ library
                        vector >= 0.10.12,
                        bytestring >= 0.10.6,
                        stm >= 2.4.4,
-                       singletons >= 2.2,
-                       microlens >= 0.4.7.0,
+                       singletons >= 2.0.1,
+                       microlens >= 0.4.2.1,
                        microlens-contra >= 0.1.0.1
   hs-source-dirs:      src/
   build-tools:         hsc2hs
