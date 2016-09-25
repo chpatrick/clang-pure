@@ -27,6 +27,8 @@ module Language.C.Clang.Cursor
   , cursorTranslationUnit
   , cursorChildrenF
   , cursorChildren
+  , cursorDescendantsF
+  , cursorDescendants
   , cursorSpelling
   , cursorExtent
   , cursorUSR
@@ -37,10 +39,23 @@ module Language.C.Clang.Cursor
   )
 where
 
+import Data.Functor.Contravariant
+import Lens.Micro
+import Lens.Micro.Contra
+
 import Language.C.Clang.Internal.FFI
 import Language.C.Clang.Internal.Types
 
-import Lens.Micro
-
 cursorChildren :: Cursor -> [ Cursor ]
 cursorChildren = toListOf cursorChildrenF
+
+cosmosOf :: (Applicative f, Contravariant f) => LensLike' f a a -> LensLike' f a a
+cosmosOf d f s = f s *> d (cosmosOf d f) s
+
+-- | `Fold` over a `Cursor` and all of its descendants recursively.
+cursorDescendantsF :: Fold Cursor Cursor
+cursorDescendantsF = cosmosOf cursorChildrenF
+
+-- | List a `Cursor` and all of its descendants recursively.
+cursorDescendants :: Cursor -> [ Cursor ]
+cursorDescendants = toListOf cursorDescendantsF

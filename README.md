@@ -1,7 +1,7 @@
 # Pure Haskell bindings to [libclang](http://clang.llvm.org/doxygen/group__CINDEX.html)
 [![Hackage](https://img.shields.io/hackage/v/clang-pure.svg)](http://hackage.haskell.org/package/clang-pure) [![Build Status](https://travis-ci.org/chpatrick/clang-pure.svg?branch=master)](https://travis-ci.org/chpatrick/clang-pure)
 
-A Haskell library for pure C++ code analysis with some light `lens` support
+A Haskell library for pure C++ code analysis
 
 ## API examples
 
@@ -30,13 +30,13 @@ idx <- createIndex
 tu <- parseTranslationUnit idx path clangArgs
 let funDecs =
       -- fold over cursors recursively
-      cosmosOnOf cursorChildrenF UT.cursorChildrenF
-      -- find FunctionDecls...
-        . folding (matchKind @'FunctionDecl)
-      -- ...that are actually in the given file and not included
-        . filtered (isFromMainFile . rangeStart . cursorExtent)
+        cursorDescendantsF
+      -- finding FunctionDecls...
+      . folding (matchKind @'FunctionDecl)
+      -- ...that are actually in the given file
+      . filtered (isFromMainFile . rangeStart . cursorExtent)
       -- and get their names and types
-        . to (\funDec -> cursorSpelling funDec <> " :: " <> typeSpelling (cursorType funDec))
+      . to (\funDec -> cursorSpelling funDec <> " :: " <> typeSpelling (cursorType funDec))
 BS.putStrLn $ BS.unlines (translationUnitCursor tu ^.. funDecs)
 ```
 

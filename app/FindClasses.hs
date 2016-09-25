@@ -64,4 +64,4 @@ main = do
 findClass :: HasClass -> Cursor -> HMS.HashMap CursorKind Bool
 findClass HasClass {..} root = HMS.fromListWith combineResults kindResults
   where
-    kindResults = root ^.. cosmosOf cursorChildrenF . to (\c -> ( cursorKind c, predicate c ) )
+    kindResults = root ^.. cursorDescendantsF . to (\c -> ( cursorKind c, predicate c ) )
