@@ -78,17 +78,20 @@ parseTranslationUnit :: ClangIndex -> FilePath -> [ String ] -> IO TranslationUn
 parseTranslationUnit idx path args = do
   tun <- newNode idx $ \idxp ->
     withCString path $ \cPath -> do
-      cArgs <- VS.fromList <$> traverse newCString args
-      ( tup, cres ) <- C.withPtr $ \tupp -> [C.exp| int {
-        clang_parseTranslationUnit2(
-          $(CXIndex idxp),
-          $(char* cPath),
-          $vec-ptr:(const char * const * cArgs), $vec-len:cArgs,
-          NULL, 0,
-          0,
-          $(CXTranslationUnit *tupp))
-        } |]
-      traverse_ free $ VS.toList cArgs
+      ( tup, cres ) <- bracket
+        (traverse newCString args)
+        (traverse_ free) $
+        \cArgList -> do
+          let cArgs = VS.fromList cArgList
+          C.withPtr $ \tupp -> [C.exp| int {
+            clang_parseTranslationUnit2(
+              $(CXIndex idxp),
+              $(char* cPath),
+              $vec-ptr:(const char * const * cArgs), $vec-len:cArgs,
+              NULL, 0,
+              0,
+              $(CXTranslationUnit *tupp))
+            } |]
       let res = parseClangError cres
       when (res /= Success) $ throwIO res
       return ( tup, clang_disposeTranslationUnit tup )
@@ -131,10 +134,10 @@ cursorChildrenF f c = uderef c $ \cp -> do
 withCXString :: (Ptr CXString -> IO ()) -> IO ByteString
 withCXString f = allocaBytes (#size CXString) $ \cxsp -> do
   f cxsp
-  cs <- [C.exp| const char * { clang_getCString(*$(CXString *cxsp)) } |]
-  s <- BS.packCString cs
-  [C.exp| void { clang_disposeString(*$(CXString *cxsp)) } |]
-  return s
+  bracket
+    [C.exp| const char * { clang_getCString(*$(CXString *cxsp)) } |]
+    (\_ -> [C.exp| void { clang_disposeString(*$(CXString *cxsp)) } |]) $
+    \cs -> BS.packCString cs
 
 cursorSpelling :: Cursor -> ByteString
 cursorSpelling c = uderef c $ \cp -> withCXString $ \cxsp ->
