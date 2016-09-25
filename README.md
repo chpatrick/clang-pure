@@ -5,12 +5,6 @@ A Haskell library for pure C++ code analysis with some light `lens` support
 
 ## API examples
 
-### Get count of `goto` statements in program
-
-```haskell
-gotoCount = lengthOf (allNodes . filtered (\c -> cursorKind c == GotoStmt)) root
-```
-
 ### Enumerate all function declarations in `main.cpp`
 
 ```haskell
@@ -27,6 +21,23 @@ main = do
         children = cursorChildren root
         functionDecls = filter (\c -> cursorKind c == FunctionDecl) children
     forM_ functionDecls (print . cursorSpelling)
+```
+
+### List all function declarations and their types, `lens`-style
+
+```haskell
+idx <- createIndex
+tu <- parseTranslationUnit idx path clangArgs
+let funDecs =
+      -- fold over cursors recursively
+      cosmosOnOf cursorChildrenF UT.cursorChildrenF
+      -- find FunctionDecls...
+        . folding (matchKind @'FunctionDecl)
+      -- ...that are actually in the given file and not included
+        . filtered (isFromMainFile . rangeStart . cursorExtent)
+      -- and get their names and types
+        . to (\funDec -> cursorSpelling funDec <> " :: " <> typeSpelling (cursorType funDec))
+BS.putStrLn $ BS.unlines (translationUnitCursor tu ^.. funDecs)
 ```
 
 ## Development
