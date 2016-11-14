@@ -610,3 +610,12 @@ instance Show File where
     "File { fileName = "
     ++ show (fileName f)
     ++ "}"
+
+offsetOfField :: Cursor -> Either TypeLayoutError Word64
+offsetOfField c = uderef c $ \cp -> do
+  res <- [C.exp| long long { clang_Cursor_getOffsetOfField(*$(CXCursor* cp)) } |]
+  return $ case res of
+    #{const CXTypeLayoutError_Invalid} -> Left TypeLayoutErrorInvalid
+    #{const CXTypeLayoutError_Incomplete} -> Left TypeLayoutErrorIncomplete
+    #{const CXTypeLayoutError_Dependent} -> Left TypeLayoutErrorDependent
+    n -> Right (fromIntegral n)

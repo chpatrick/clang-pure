@@ -343,3 +343,9 @@ data TokenSet = TokenSet
 type instance RefOf Token = CXToken
 type instance ParentOf Token = TranslationUnit
 data Token = Token TokenSet Int
+
+data TypeLayoutError
+  = TypeLayoutErrorInvalid
+  | TypeLayoutErrorIncomplete
+  | TypeLayoutErrorDependent
+    deriving (Eq, Ord, Show)

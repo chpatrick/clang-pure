@@ -80,3 +80,12 @@ executable list-fun-types
   ghc-options:         -Wall -O2
   if impl(ghc >= 8.0.0)
     ghc-options: -fno-warn-redundant-constraints
+
+executable list-structs
+  main-is:             ListStructs.hs
+  build-depends:       base, clang-pure, lens, bytestring
+  hs-source-dirs:      examples
+  buildable:           False
+  ghc-options:         -Wall -O2
+  if impl(ghc >= 8.0.0)
+    ghc-options: -fno-warn-redundant-constraints

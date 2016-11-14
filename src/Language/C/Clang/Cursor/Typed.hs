@@ -30,6 +30,9 @@ module Language.C.Clang.Cursor.Typed
 
   , cursorSpelling
 
+  , TypeLayoutError(..)
+  , offsetOfField
+
   , HasType
   , HasChildren
   , HasExtent
@@ -41,19 +44,19 @@ import qualified Data.ByteString as BS
 import           Data.Functor.Contravariant
 import           Data.Maybe
 import           Data.Singletons
+import           Data.Word
 import           Lens.Micro.Contra
 
 import qualified Language.C.Clang.Cursor as UT
 import           Language.C.Clang.Cursor ( cursorKind, Cursor, CursorKind(..) )
 import           Language.C.Clang.Location
-import           Language.C.Clang.Type
-import           Language.C.Clang.TranslationUnit
+import           Language.C.Clang.Internal.Types
 
 import           Language.C.Clang.Internal.Refs (Clang)
 
 -- | A `Cursor` with a statically known `CursorKind`.
 newtype CursorK (kind :: CursorKind) = CursorK { withoutKind :: Cursor }
-  deriving (Eq, Clang)
+  deriving (Eq, Clang, Show)
 
 -- | Match a `Cursor` as a particular `CursorKind`. You can use the @TypeApplications@ extension to easily specify the `CursorKind` you want: @matchKind \@'StructDecl@.
 matchKind :: forall kind. SingI kind => Cursor -> Maybe (CursorK kind)
@@ -96,6 +99,9 @@ class HasSpelling (kind :: CursorKind)
 
 cursorSpelling :: HasSpelling kind => CursorK kind -> BS.ByteString
 cursorSpelling = UT.cursorSpelling . withoutKind
+
+offsetOfField :: CursorK 'FieldDecl -> Either TypeLayoutError Word64
+offsetOfField = UT.offsetOfField . withoutKind
 
 -- instances derived experimentally with the find-classes executable
 instance HasChildren 'ArraySubscriptExpr
@@ -284,6 +290,7 @@ instance HasSpelling 'Constructor
 instance HasSpelling 'ConversionFunction
 instance HasSpelling 'Destructor
 instance HasSpelling 'EnumConstantDecl
+instance HasSpelling 'FieldDecl
 instance HasSpelling 'FunctionDecl
 instance HasSpelling 'FunctionTemplate
 instance HasSpelling 'MemberRef
@@ -291,6 +298,7 @@ instance HasSpelling 'Namespace
 instance HasSpelling 'NamespaceRef
 instance HasSpelling 'OverloadedDeclRef
 instance HasSpelling 'StringLiteral
+instance HasSpelling 'StructDecl
 instance HasSpelling 'TemplateRef
 instance HasSpelling 'TranslationUnit
 instance HasSpelling 'TypeRef
