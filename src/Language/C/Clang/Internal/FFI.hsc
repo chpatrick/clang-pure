@@ -117,7 +117,7 @@ cursorChildrenF :: Fold Cursor Cursor
 cursorChildrenF f c = uderef c $ \cp -> do
   -- initialize the "Fold state" with no effect
   fRef <- newIORef $ phantom $ pure ()
-  let 
+  let
     visitChild chp = do
       ch <- newLeaf (cursorTranslationUnit c) $ \_ ->
         return ( chp, free chp )
@@ -468,6 +468,31 @@ cursorType c = uderef c $ \cp -> do
     then return Nothing
     else (Just . Type) <$> newLeaf (parent c) (\_ -> return ( tp, free tp ))
 
+typeArraySize :: Type -> Maybe Word64
+typeArraySize t = uderef t $ \tp -> do
+    as <- [C.exp| long long { clang_getArraySize(*$(CXType *tp)) } |]
+    return $ if as == -1 then Nothing else Just (fromIntegral as)
+
+typeCanonicalType :: Type -> Type
+typeCanonicalType t = uderef t $ \tp -> do
+  ctp <- [C.exp| CXType* { ALLOC(clang_getCanonicalType(*$(CXType *tp))) } |]
+  Type <$> newLeaf (parent t) (\_ -> pure (ctp, free ctp))
+
+typeElementType :: Type -> Maybe Type
+typeElementType t = uderef t $ \tp -> do
+  etp <- [C.block| CXType* {
+    CXType type = clang_getElementType(*$(CXType *tp));
+
+    if (type.kind == CXType_Invalid) {
+      return NULL;
+    }
+
+    return ALLOC(type);
+    } |]
+  if etp == nullPtr
+    then return Nothing
+    else (Just . Type) <$> newLeaf (parent t) (\_ -> return ( etp, free etp ))
+
 typeKind :: Type -> TypeKind
 typeKind t = uderef t $ fmap parseTypeKind . #peek CXType, kind
 
@@ -525,6 +550,15 @@ parseTypeKind = \case
   #{const CXType_MemberPointer} -> MemberPointer
   _ -> Unexposed
 
+typeSizeOf :: Type -> Either TypeLayoutError Word64
+typeSizeOf t = uderef t $ \tp -> do
+  res <- [C.exp| long long { clang_Type_getSizeOf(*$(CXType *tp)) } |]
+  return $ case res of
+    #{const CXTypeLayoutError_Invalid} -> Left TypeLayoutErrorInvalid
+    #{const CXTypeLayoutError_Incomplete} -> Left TypeLayoutErrorIncomplete
+    #{const CXTypeLayoutError_Dependent} -> Left TypeLayoutErrorDependent
+    n -> Right (fromIntegral n)
+
 typeSpelling :: Type -> ByteString
 typeSpelling t = uderef t $ \tp ->
   withCXString $ \cxsp ->
@@ -548,7 +582,7 @@ tokenize sr = unsafePerformIO $
       ( tsp, tn ) <- C.withPtrs_ $ \( tspp, tnp ) ->
         [C.exp| void {
           clang_tokenize(
-            $(CXTranslationUnit tup), 
+            $(CXTranslationUnit tup),
             *$(CXSourceRange *srp),
             $(CXToken **tspp),
             $(unsigned int *tnp));

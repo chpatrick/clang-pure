@@ -16,6 +16,10 @@ limitations under the License.
 
 module Language.C.Clang.Type
   ( Type()
+  , typeArraySize
+  , typeCanonicalType
+  , typeElementType
+  , typeSizeOf
   , typeSpelling
   , typeKind
   , TypeKind(..)

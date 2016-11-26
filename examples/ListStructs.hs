@@ -6,14 +6,24 @@ import           Language.C.Clang
 import           Language.C.Clang.Cursor.Typed
 import           Control.Lens
 import qualified Data.ByteString.Char8 as BS
-import           Data.Monoid
+import           Data.Maybe
 import           Data.Word
 import           System.Environment
+
+data CType =
+  CArrayType  { cType :: Type
+              , cCanonicalType :: Type
+              , cElementType :: CType
+              , cArraySize :: Word64, cSize :: Word64} |
+  CScalarType { cType :: Type
+              , cCanonicalType :: Type
+              , cSize :: Word64
+              } deriving (Show)
 
 data CField = CField
   { cFieldName :: BS.ByteString
   , cFieldOffset :: Word64
-  , cFieldType :: Type
+  , cFieldType :: CType
   } deriving (Show)
 
 data CStruct = CStruct
@@ -29,12 +39,33 @@ main = do
       idx <- createIndex
       tu <- parseTranslationUnit idx path clangArgs
 
+      let toCType tp = let canonicalType = typeCanonicalType tp
+                       in case typeKind canonicalType of
+            ConstantArray -> do
+              elementType <- toCType . fromJust . typeElementType $ canonicalType
+              size <- typeSizeOf tp
+              pure $ CArrayType
+                { cType = tp
+                , cCanonicalType = canonicalType
+                , cElementType = elementType
+                , cArraySize = fromJust (typeArraySize canonicalType)
+                , cSize = size
+                }
+            _ -> do
+              size <- typeSizeOf tp
+              pure $ CScalarType
+                { cType = tp
+                , cCanonicalType = canonicalType
+                , cSize = size
+                }
+
       let toCField fieldDecC = do
-            offset <- offsetOfField fieldDecC
+            fieldOffset <- offsetOfField fieldDecC
+            fieldType <- toCType (cursorType fieldDecC)
             return $ CField
               { cFieldName = cursorSpelling fieldDecC
-              , cFieldOffset = offset
-              , cFieldType = cursorType fieldDecC
+              , cFieldOffset = fieldOffset
+              , cFieldType = fieldType
               }
 
       let toCStruct structDecC = do
