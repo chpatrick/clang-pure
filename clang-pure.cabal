@@ -54,6 +54,7 @@ library
                        microlens >= 0.4.2.1,
                        microlens-contra >= 0.1.0.1
   hs-source-dirs:      src/
+  build-tools:         hsc2hs
   default-language:    Haskell2010
   include-dirs:        cbits/
   cc-options:          -Wall -Werror

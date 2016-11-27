@@ -54,9 +54,12 @@ findLLVMConfigPaths = do
           ]
   let tryCandidates [] = throwIO $ SetupException "Could not find llvm-config."
       tryCandidates (llvmConfig : candidates) = do
+        putStrLn ("Trying: " ++ show llvmConfig)
         llvmConfigResult <- tryJust (guard . isDoesNotExistError) (readProcess llvmConfig ["--libdir", "--includedir"] "")
         case llvmConfigResult of
-          Left _ -> tryCandidates candidates
+          Left err -> do
+            putStrLn $ "Failed: " ++ show err
+            tryCandidates candidates
           Right llvmConfigOutput -> case lines llvmConfigOutput of
             [ libraryDir, includeDir ] -> return $ LLVMPathInfo libraryDir includeDir
             _ -> throwIO $ SetupException "Unexpected llvm-config output."
@@ -77,7 +80,10 @@ clangPureConfHook (d, bi) flags = do
   let Just lib = library pd
   let lbi = libBuildInfo lib
 
-  LLVMPathInfo{..} <- getLLVMPathInfo
+  pathinfo@LLVMPathInfo{..} <- getLLVMPathInfo
+
+  putStrLn "Using paths:"
+  print pathinfo
 
   return localBuildInfo {
     localPkgDescr = pd {
