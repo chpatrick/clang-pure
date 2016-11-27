@@ -105,7 +105,7 @@ matrix:
 
 before_install:
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; brew install llvm38; fi
-- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get -qq update; sudo apt-get install -y libclang-3.6-dev; fi
+- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get -qq update; sudo apt-get install -y libclang-3.8-dev; fi
 # Using compiler above sets CC to an invalid value, so unset it
 - unset CC
 
