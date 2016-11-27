@@ -69,9 +69,9 @@ matrix:
   #  compiler: ": #stack 7.10.2"
   #  addons: {apt: {packages: [ghc-7.10.2], sources: [hvr-ghc]}}
 
-  - env: BUILD=stack ARGS="--resolver lts-5"
-    compiler: ": #stack 7.10.3"
-    addons: {apt: {packages: [ghc-7.10.3], sources: [hvr-ghc]}}
+  #- env: BUILD=stack ARGS="--resolver lts-5"
+  #  compiler: ": #stack 7.10.3"
+  #  addons: {apt: {packages: [ghc-7.10.3], sources: [hvr-ghc]}}
 
   # Nightly builds are allowed to fail
   - env: BUILD=stack ARGS="--resolver nightly"
@@ -105,7 +105,7 @@ matrix:
 
 before_install:
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; brew install llvm38; fi
-- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get -qq update; sudo apt-get install -y libclang-3.6-dev; fi
+- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get -qq update; sudo apt-get install -y libclang-3.8-dev; fi
 # Using compiler above sets CC to an invalid value, so unset it
 - unset CC
 

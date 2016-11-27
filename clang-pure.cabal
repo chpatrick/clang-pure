@@ -57,7 +57,7 @@ library
   build-tools:         hsc2hs
   default-language:    Haskell2010
   include-dirs:        cbits/
-  cc-options:          -Wall
+  cc-options:          -Wall -Werror
   extra-libraries:     clang
   ghc-options:         -Wall -O2
   if impl(ghc >= 8.0.0)
