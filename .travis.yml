@@ -104,8 +104,16 @@ matrix:
   - env: BUILD=stack ARGS="--resolver nightly"
 
 before_install:
-- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; brew install llvm38; fi
-- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get -qq update; sudo apt-get install -y libclang-3.8-dev; fi
+- if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
+    brew update;
+    brew install llvm38;
+    fi
+- if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
+    sudo apt-get -qq update;
+    sudo apt-get install -y libclang-3.8-dev;
+    export CLANG_PURE_LLVM_LIB_DIR=/usr/lib/llvm-3.8/lib;
+    export CLANG_PURE_LLVM_INCLUDE_DIR=/usr/lib/llvm-3.8/include;
+   fi
 # Using compiler above sets CC to an invalid value, so unset it
 - unset CC
 
