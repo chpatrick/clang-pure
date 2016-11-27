@@ -550,14 +550,22 @@ parseTypeKind = \case
   #{const CXType_MemberPointer} -> MemberPointer
   _ -> Unexposed
 
+eitherTypeLayoutErrorOrWord64 :: CLLong -> Either TypeLayoutError Word64
+eitherTypeLayoutErrorOrWord64 n = case n of
+  #{const CXTypeLayoutError_Invalid} -> Left TypeLayoutErrorInvalid
+  #{const CXTypeLayoutError_Incomplete} -> Left TypeLayoutErrorIncomplete
+  #{const CXTypeLayoutError_Dependent} -> Left TypeLayoutErrorDependent
+  _ -> Right $ fromIntegral n
+
 typeSizeOf :: Type -> Either TypeLayoutError Word64
-typeSizeOf t = uderef t $ \tp -> do
-  res <- [C.exp| long long { clang_Type_getSizeOf(*$(CXType *tp)) } |]
-  return $ case res of
-    #{const CXTypeLayoutError_Invalid} -> Left TypeLayoutErrorInvalid
-    #{const CXTypeLayoutError_Incomplete} -> Left TypeLayoutErrorIncomplete
-    #{const CXTypeLayoutError_Dependent} -> Left TypeLayoutErrorDependent
-    n -> Right (fromIntegral n)
+typeSizeOf t = uderef t $ \tp ->
+  eitherTypeLayoutErrorOrWord64 <$>
+  [C.exp| long long { clang_Type_getSizeOf(*$(CXType *tp)) } |]
+
+offsetOfField :: Cursor -> Either TypeLayoutError Word64
+offsetOfField c = uderef c $ \cp ->
+  eitherTypeLayoutErrorOrWord64 <$>
+  [C.exp| long long { clang_Cursor_getOffsetOfField(*$(CXCursor* cp)) } |]
 
 typeSpelling :: Type -> ByteString
 typeSpelling t = uderef t $ \tp ->
@@ -644,12 +652,3 @@ instance Show File where
     "File { fileName = "
     ++ show (fileName f)
     ++ "}"
-
-offsetOfField :: Cursor -> Either TypeLayoutError Word64
-offsetOfField c = uderef c $ \cp -> do
-  res <- [C.exp| long long { clang_Cursor_getOffsetOfField(*$(CXCursor* cp)) } |]
-  return $ case res of
-    #{const CXTypeLayoutError_Invalid} -> Left TypeLayoutErrorInvalid
-    #{const CXTypeLayoutError_Incomplete} -> Left TypeLayoutErrorIncomplete
-    #{const CXTypeLayoutError_Dependent} -> Left TypeLayoutErrorDependent
-    n -> Right (fromIntegral n)
