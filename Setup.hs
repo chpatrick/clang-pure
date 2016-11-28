@@ -28,6 +28,8 @@ import Distribution.Simple.Setup
 import System.Environment
 import System.IO.Error
 import System.Process
+import Data.Version
+import Text.ParserCombinators.ReadP
 
 data SetupException = SetupException String deriving Show
 
@@ -44,6 +46,9 @@ llvmLibDirEnvVarName = "CLANG_PURE_LLVM_LIB_DIR"
 llvmIncludeDirEnvVarName :: String
 llvmIncludeDirEnvVarName = "CLANG_PURE_LLVM_INCLUDE_DIR"
 
+minVersion :: Version
+minVersion = makeVersion [ 3, 8, 0 ]
+
 findLLVMConfigPaths :: IO LLVMPathInfo
 findLLVMConfigPaths = do
   let llvmConfigCandidates =
@@ -52,13 +57,20 @@ findLLVMConfigPaths = do
           | major <- [9,8..3 :: Int]
           , minor <- [9,8..0 :: Int]
           ]
-  let tryCandidates [] = throwIO $ SetupException "Could not find llvm-config."
+  let tryCandidates [] = throwIO $ SetupException $ "Could not find llvm-config with minimum version " ++ showVersion minVersion ++ "."
       tryCandidates (llvmConfig : candidates) = do
-        llvmConfigResult <- tryJust (guard . isDoesNotExistError) (readProcess llvmConfig ["--libdir", "--includedir"] "")
+        llvmConfigResult <- tryJust
+          (guard . isDoesNotExistError)
+          (readProcess llvmConfig ["--version", "--libdir", "--includedir"] "")
         case llvmConfigResult of
           Left _ -> tryCandidates candidates
           Right llvmConfigOutput -> case lines llvmConfigOutput of
-            [ libraryDir, includeDir ] -> return $ LLVMPathInfo libraryDir includeDir
+            [ versionString, libraryDir, includeDir ] ->
+              case readP_to_S (parseVersion <* eof) versionString of
+                [ ( version, _ ) ]
+                  | version >= minVersion -> return $ LLVMPathInfo libraryDir includeDir
+                  | otherwise -> tryCandidates candidates
+                _ -> throwIO $ SetupException "Couldn't parse llvm-config version string."
             _ -> throwIO $ SetupException "Unexpected llvm-config output."
   tryCandidates llvmConfigCandidates
 
