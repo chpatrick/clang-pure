@@ -25,11 +25,10 @@ import Distribution.PackageDescription
 import Distribution.Simple
 import Distribution.Simple.LocalBuildInfo
 import Distribution.Simple.Setup
+import Distribution.Text (simpleParse)
 import System.Environment
 import System.IO.Error
 import System.Process
-import Data.Version
-import Text.ParserCombinators.ReadP
 
 data SetupException = SetupException String deriving Show
 
@@ -46,8 +45,8 @@ llvmLibDirEnvVarName = "CLANG_PURE_LLVM_LIB_DIR"
 llvmIncludeDirEnvVarName :: String
 llvmIncludeDirEnvVarName = "CLANG_PURE_LLVM_INCLUDE_DIR"
 
-minVersion :: Version
-minVersion = makeVersion [ 3, 8, 0 ]
+supportedLlvmVersions :: VersionRange
+supportedLlvmVersions = orLaterVersion (mkVersion [ 3, 8, 0 ])
 
 findLLVMConfigPaths :: IO LLVMPathInfo
 findLLVMConfigPaths = do
@@ -57,7 +56,7 @@ findLLVMConfigPaths = do
           | major <- [9,8..3 :: Int]
           , minor <- [9,8..0 :: Int]
           ]
-  let tryCandidates [] = throwIO $ SetupException $ "Could not find llvm-config with minimum version " ++ showVersion minVersion ++ "."
+  let tryCandidates [] = throwIO $ SetupException $ "Could not find llvm-config with version " ++ show supportedLlvmVersions ++ "."
       tryCandidates (llvmConfig : candidates) = do
         llvmConfigResult <- tryJust
           (guard . isDoesNotExistError)
@@ -66,11 +65,11 @@ findLLVMConfigPaths = do
           Left _ -> tryCandidates candidates
           Right llvmConfigOutput -> case lines llvmConfigOutput of
             [ versionString, libraryDir, includeDir ] ->
-              case readP_to_S (parseVersion <* eof) versionString of
-                [ ( version, _ ) ]
-                  | version >= minVersion -> return $ LLVMPathInfo libraryDir includeDir
+              case simpleParse versionString of
+                Just version
+                  | version `withinRange` supportedLlvmVersions -> return $ LLVMPathInfo libraryDir includeDir
                   | otherwise -> tryCandidates candidates
-                _ -> throwIO $ SetupException "Couldn't parse llvm-config version string."
+                Nothing -> throwIO $ SetupException "Couldn't parse llvm-config version string."
             _ -> throwIO $ SetupException "Unexpected llvm-config output."
   tryCandidates llvmConfigCandidates
 
