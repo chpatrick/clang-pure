@@ -15,20 +15,22 @@ location or from an alternative location if overridden with both the
 
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wall #-}
 
 module Main (main) where
 
-import Control.Exception
-import Control.Monad
-import Distribution.PackageDescription
-import Distribution.Simple
-import Distribution.Simple.LocalBuildInfo
-import Distribution.Simple.Setup
-import Distribution.Text (simpleParse)
-import System.Environment
-import System.IO.Error
-import System.Process
+import           Control.Exception
+import           Control.Monad
+import           Distribution.PackageDescription
+import           Distribution.Simple
+import           Distribution.Simple.LocalBuildInfo
+import           Distribution.Simple.Setup
+import           System.Environment
+import           System.IO.Error
+import           System.Process
+import qualified Data.Version as V
+import           Text.ParserCombinators.ReadP
 
 data SetupException = SetupException String deriving Show
 
@@ -45,8 +47,8 @@ llvmLibDirEnvVarName = "CLANG_PURE_LLVM_LIB_DIR"
 llvmIncludeDirEnvVarName :: String
 llvmIncludeDirEnvVarName = "CLANG_PURE_LLVM_INCLUDE_DIR"
 
-supportedLlvmVersions :: VersionRange
-supportedLlvmVersions = orLaterVersion (mkVersion [ 3, 8, 0 ])
+minVersion :: V.Version
+minVersion = V.makeVersion [ 3, 8, 0 ]
 
 findLLVMConfigPaths :: IO LLVMPathInfo
 findLLVMConfigPaths = do
@@ -56,7 +58,7 @@ findLLVMConfigPaths = do
           | major <- [9,8..3 :: Int]
           , minor <- [9,8..0 :: Int]
           ]
-  let tryCandidates [] = throwIO $ SetupException $ "Could not find llvm-config with version " ++ show supportedLlvmVersions ++ "."
+  let tryCandidates [] = throwIO $ SetupException $ "Could not find llvm-config with minimum version " ++ V.showVersion minVersion ++ "."
       tryCandidates (llvmConfig : candidates) = do
         llvmConfigResult <- tryJust
           (guard . isDoesNotExistError)
@@ -65,11 +67,11 @@ findLLVMConfigPaths = do
           Left _ -> tryCandidates candidates
           Right llvmConfigOutput -> case lines llvmConfigOutput of
             [ versionString, libraryDir, includeDir ] ->
-              case simpleParse versionString of
-                Just version
-                  | version `withinRange` supportedLlvmVersions -> return $ LLVMPathInfo libraryDir includeDir
+              case readP_to_S (V.parseVersion <* eof) versionString of
+                [ ( version, _ ) ]
+                  | version >= minVersion -> return $ LLVMPathInfo libraryDir includeDir
                   | otherwise -> tryCandidates candidates
-                Nothing -> throwIO $ SetupException "Couldn't parse llvm-config version string."
+                _ -> throwIO $ SetupException "Couldn't parse llvm-config version string."
             _ -> throwIO $ SetupException "Unexpected llvm-config output."
   tryCandidates llvmConfigCandidates
 
@@ -84,28 +86,45 @@ getLLVMPathInfo = do
 clangPureConfHook :: (GenericPackageDescription, HookedBuildInfo) -> ConfigFlags -> IO LocalBuildInfo
 clangPureConfHook (d, bi) flags = do
   localBuildInfo <- confHook simpleUserHooks (d, bi) flags
+
+  let findLlvmFlagName =
+#if MIN_VERSION_Cabal(2,0,0)
+        mkFlagName
+#else
+        FlagName
+#endif
+        "find-llvm"
+  let Just findLlvm = lookup findLlvmFlagName (flagAssignment localBuildInfo)
+
   let pd = localPkgDescr localBuildInfo
   let Just lib = library pd
   let lbi = libBuildInfo lib
 
-  LLVMPathInfo{..} <- getLLVMPathInfo
+  linkedLbi <- if findLlvm
+    then do
+      LLVMPathInfo{..} <- getLLVMPathInfo
 
-  return localBuildInfo {
-    localPkgDescr = pd {
-      library = Just $ lib {
-        libBuildInfo = lbi
+      return lbi
         { includeDirs = llvmIncludeDir : includeDirs lbi
         , extraLibDirs = llvmLibraryDir : extraLibDirs lbi
-        , cSources = -- define the generated c-sources here so that they don't get picked up by sdist
-#ifdef mingw32_HOST_OS
-            ["srcLanguageCClangInternalFFI.c"] -- work around a bug in inline-c (?)
-#else
-            ["src/Language/C/Clang/Internal/FFI.c"]
+        }
+    else return lbi
+
+  let lbiWithCSources =
+        linkedLbi
+#if !(MIN_VERSION_inline_c(0,6,0) && MIN_VERSION_GLASGOW_HASKELL(8,2,1,0))
+          -- define the generated c-sources here so that they don't get picked up by sdist
+          { cSources = ["src/Language/C/Clang/Internal/FFI.c"] }
 #endif
+
+  return
+    localBuildInfo {
+      localPkgDescr = pd {
+        library = Just $ lib {
+          libBuildInfo = lbiWithCSources
         }
       }
     }
-  }
 
 main :: IO ()
 main = defaultMainWithHooks simpleUserHooks { confHook = clangPureConfHook }
