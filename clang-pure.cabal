@@ -1,5 +1,5 @@
 name:                  clang-pure
-version:               0.2.0.2
+version:               0.2.0.3
 synopsis:              Pure C++ code analysis with libclang
 description:
   Pure C++ code analysis with libclang.
@@ -59,7 +59,7 @@ library
   include-dirs:        cbits/
   cc-options:          -Wall -Werror
   extra-libraries:     clang
-  ghc-options:         -Wall -O2
+  ghc-options:         -Wall
   if impl(ghc >= 8.0.0)
     ghc-options: -fno-warn-redundant-constraints
 
