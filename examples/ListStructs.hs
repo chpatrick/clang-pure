@@ -74,7 +74,10 @@ main = do
                     ^.. cursorDescendantsF
                       . folding (matchKind @'FieldDecl)
             cFields <- traverse toCField fieldDecs
-            return $ CStruct (cursorSpelling structDecC) cFields
+            return CStruct
+              { cStructName = cursorSpelling structDecC
+              , cStructFields = cFields
+              }
 
       let cStructs =
             translationUnitCursor tu

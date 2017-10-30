@@ -72,20 +72,20 @@ executable find-classes
   if impl(ghc >= 8.0.0)
     ghc-options: -fno-warn-redundant-constraints
 
-executable list-fun-types
+test-suite list-fun-types
+  type:                exitcode-stdio-1.0
   main-is:             ListTypes.hs
   build-depends:       base, clang-pure, lens, bytestring
   hs-source-dirs:      examples
-  buildable:           False
   ghc-options:         -Wall -O2
   if impl(ghc >= 8.0.0)
     ghc-options: -fno-warn-redundant-constraints
 
-executable list-structs
+test-suite list-structs
+  type:                exitcode-stdio-1.0
   main-is:             ListStructs.hs
   build-depends:       base, clang-pure, lens, bytestring
   hs-source-dirs:      examples
-  buildable:           False
   ghc-options:         -Wall -O2
   if impl(ghc >= 8.0.0)
     ghc-options: -fno-warn-redundant-constraints
