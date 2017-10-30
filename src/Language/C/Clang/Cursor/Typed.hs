@@ -83,11 +83,11 @@ cursorChildren :: HasChildren kind => CursorK kind -> [ Cursor ]
 cursorChildren = UT.cursorChildren . withoutKind
 
 -- | `Fold` over a `CursorK` and all of its descendants recursively.
-cursorDescendantsF :: Fold (CursorK kind) Cursor
+cursorDescendantsF :: HasChildren kind => Fold (CursorK kind) Cursor
 cursorDescendantsF = to withoutKind . UT.cursorDescendantsF
 
 -- | List a `CursorK` and all of its descendants recursively.
-cursorDescendants :: CursorK kind -> [ Cursor ]
+cursorDescendants :: HasChildren kind => CursorK kind -> [ Cursor ]
 cursorDescendants = UT.cursorDescendants . withoutKind
 
 class HasExtent (kind :: CursorKind)
