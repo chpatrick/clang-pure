@@ -98,8 +98,8 @@ clangPureConfHook (d, bi) flags = do
         { includeDirs = llvmIncludeDir : includeDirs lbi
         , extraLibDirs = llvmLibraryDir : extraLibDirs lbi
         , cSources = -- define the generated c-sources here so that they don't get picked up by sdist
-#ifdef mingw32_HOST_OS
-            ["srcLanguageCClangInternalFFI.c"] -- work around a bug in inline-c (?)
+#if defined(mingw32_HOST_OS) && !(MIN_VERSION_GLASGOW_HASKELL(8, 0, 2, 0))
+            ["srcLanguageCClangInternalFFI.c"] -- work around a bug in hsc2hs
 #else
             ["src/Language/C/Clang/Internal/FFI.c"]
 #endif
