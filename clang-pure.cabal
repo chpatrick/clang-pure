@@ -13,8 +13,14 @@ maintainer:            chpatrick@gmail.com
 copyright:             Copyright 2014 Google Inc. All Rights Reserved.
 category:              Language
 build-type:            Custom
-cabal-version:         >=1.10
+cabal-version:         >=1.24
 extra-source-files:    cbits/utils.h
+
+custom-setup
+  setup-depends:
+    base >= 4.5 && < 5,
+    Cabal >= 1.24,
+    process >= 1.3.0.0
 
 source-repository head
   type: git
@@ -65,27 +71,30 @@ library
 
 executable find-classes
   main-is:             FindClasses.hs
+  default-language:    Haskell2010
   build-depends:       base, clang-pure, lens, unordered-containers, hashable, bytestring
   hs-source-dirs:      app
   buildable:           False
-  ghc-options:         -Wall -O2 -fno-warn-orphans
+  ghc-options:         -Wall -fno-warn-orphans
   if impl(ghc >= 8.0.0)
     ghc-options: -fno-warn-redundant-constraints
 
 test-suite list-fun-types
   type:                exitcode-stdio-1.0
   main-is:             ListTypes.hs
+  default-language:    Haskell2010
   build-depends:       base, clang-pure, lens, bytestring
   hs-source-dirs:      examples
-  ghc-options:         -Wall -O2
+  ghc-options:         -Wall
   if impl(ghc >= 8.0.0)
     ghc-options: -fno-warn-redundant-constraints
 
 test-suite list-structs
   type:                exitcode-stdio-1.0
+  default-language:    Haskell2010
   main-is:             ListStructs.hs
   build-depends:       base, clang-pure, lens, bytestring
   hs-source-dirs:      examples
-  ghc-options:         -Wall -O2
+  ghc-options:         -Wall
   if impl(ghc >= 8.0.0)
     ghc-options: -fno-warn-redundant-constraints

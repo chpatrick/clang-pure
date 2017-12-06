@@ -28,7 +28,7 @@ import Distribution.Simple.Setup
 import System.Environment
 import System.IO.Error
 import System.Process
-import Data.Version
+import qualified Data.Version as Version
 import Text.ParserCombinators.ReadP
 
 data SetupException = SetupException String deriving Show
@@ -46,8 +46,8 @@ llvmLibDirEnvVarName = "CLANG_PURE_LLVM_LIB_DIR"
 llvmIncludeDirEnvVarName :: String
 llvmIncludeDirEnvVarName = "CLANG_PURE_LLVM_INCLUDE_DIR"
 
-minVersion :: Version
-minVersion = makeVersion [ 3, 8, 0 ]
+minVersion :: Version.Version
+minVersion = Version.makeVersion [ 3, 8, 0 ]
 
 findLLVMConfigPaths :: IO LLVMPathInfo
 findLLVMConfigPaths = do
@@ -57,7 +57,7 @@ findLLVMConfigPaths = do
           | major <- [9,8..3 :: Int]
           , minor <- [9,8..0 :: Int]
           ]
-  let tryCandidates [] = throwIO $ SetupException $ "Could not find llvm-config with minimum version " ++ showVersion minVersion ++ "."
+  let tryCandidates [] = throwIO $ SetupException $ "Could not find llvm-config with minimum version " ++ Version.showVersion minVersion ++ "."
       tryCandidates (llvmConfig : candidates) = do
         llvmConfigResult <- tryJust
           (guard . isDoesNotExistError)
@@ -66,7 +66,7 @@ findLLVMConfigPaths = do
           Left _ -> tryCandidates candidates
           Right llvmConfigOutput -> case lines llvmConfigOutput of
             [ versionString, libraryDir, includeDir ] ->
-              case readP_to_S (parseVersion <* eof) versionString of
+              case readP_to_S (Version.parseVersion <* eof) versionString of
                 [ ( version, _ ) ]
                   | version >= minVersion -> return $ LLVMPathInfo libraryDir includeDir
                   | otherwise -> tryCandidates candidates
@@ -97,11 +97,13 @@ clangPureConfHook (d, bi) flags = do
         libBuildInfo = lbi
         { includeDirs = llvmIncludeDir : includeDirs lbi
         , extraLibDirs = llvmLibraryDir : extraLibDirs lbi
+#if !(MIN_VERSION_GLASGOW_HASKELL(8, 2, 1, 0))
         , cSources = -- define the generated c-sources here so that they don't get picked up by sdist
 #if defined(mingw32_HOST_OS) && !(MIN_VERSION_GLASGOW_HASKELL(8, 0, 2, 0))
             ["srcLanguageCClangInternalFFI.c"] -- work around a bug in hsc2hs
 #else
             ["src/Language/C/Clang/Internal/FFI.c"]
+#endif
 #endif
         }
       }
