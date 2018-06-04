@@ -17,6 +17,7 @@ limitations under the License.
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE GADTs #-}
 
 module Language.C.Clang.Internal.Types where
 
