@@ -42,7 +42,7 @@ C.context clangCtx
 C.include "stdlib.h"
 #include  "clang-c/Index.h"
 C.include "clang-c/Index.h"
-C.include "utils.h"
+C.include "clang-pure-utils.h"
 
 foreign import ccall "clang_disposeIndex"
   clang_disposeIndex :: Ptr CXIndexImpl -> Finalizer

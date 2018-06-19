@@ -6,8 +6,8 @@ import           Language.C.Clang
 import           Language.C.Clang.Cursor.Typed
 import           Control.Lens
 import qualified Data.ByteString.Char8 as BS
-import           Data.Monoid
 import           System.Environment
+import           Data.Monoid ((<>))
 
 main :: IO ()
 main = do
