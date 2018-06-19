@@ -14,13 +14,14 @@ copyright:             Copyright 2014 Google Inc. All Rights Reserved.
 category:              Language
 build-type:            Custom
 cabal-version:         >=1.24
-extra-source-files:    cbits/utils.h
+extra-source-files:    cbits/clang-pure-utils.h
 
 custom-setup
   setup-depends:
     base >= 4.5 && < 5,
     Cabal >= 1.24,
-    process >= 1.3.0.0
+    process >= 1.3.0.0,
+    inline-c
 
 source-repository head
   type: git
@@ -63,6 +64,7 @@ library
   build-tools:         hsc2hs
   default-language:    Haskell2010
   include-dirs:        cbits/
+  includes:            clang-c/Index.h
   cc-options:          -Wall -Werror
   extra-libraries:     clang
   ghc-options:         -Wall
