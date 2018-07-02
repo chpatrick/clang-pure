@@ -147,6 +147,8 @@ before_install:
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
     brew update;
     brew install llvm@3.9;
+    export CLANG_PURE_LLVM_LIB_DIR=/usr/local/opt/llvm@3.9/lib;
+    export CLANG_PURE_LLVM_INCLUDE_DIR=/usr/local/opt/llvm@3.9/include;
     fi
 - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
     sudo apt-get -qq update;

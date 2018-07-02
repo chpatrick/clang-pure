@@ -68,15 +68,21 @@ findLLVMConfigPaths verbosity = do
           (guard . isDoesNotExistError)
           (readProcess llvmConfig ["--version", "--libdir", "--includedir"] "")
         case llvmConfigResult of
-          Left _ -> tryCandidates candidates
-          Right llvmConfigOutput -> case lines llvmConfigOutput of
-            [ versionString, libraryDir, includeDir ] ->
-              case readP_to_S (Version.parseVersion <* eof) versionString of
-                [ ( version, _ ) ]
-                  | version >= minVersion -> return $ LLVMPathInfo libraryDir includeDir
-                  | otherwise -> tryCandidates candidates
-                _ -> die' verbosity "Couldn't parse llvm-config version string."
-            _ -> die' verbosity "Unexpected llvm-config output."
+          Left _ -> do
+            putStrLn ("Could not execute " ++ llvmConfig)
+            tryCandidates candidates
+          Right llvmConfigOutput -> do
+            putStrLn ("Found " ++ llvmConfig)
+            case lines llvmConfigOutput of
+              [ versionString, libraryDir, includeDir ] ->
+                case readP_to_S (Version.parseVersion <* eof) versionString of
+                  [ ( version, _ ) ]
+                    | version >= minVersion -> return $ LLVMPathInfo libraryDir includeDir
+                    | otherwise -> do
+                      putStrLn ("Version too low: " ++ show version)
+                      tryCandidates candidates
+                  _ -> die' verbosity "Couldn't parse llvm-config version string."
+              _ -> die' verbosity "Unexpected llvm-config output."
   tryCandidates llvmConfigCandidates
 
 getLLVMPathInfo :: Verbosity -> IO LLVMPathInfo
