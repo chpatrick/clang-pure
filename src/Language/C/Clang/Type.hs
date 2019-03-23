@@ -19,6 +19,7 @@ module Language.C.Clang.Type
   , typeArraySize
   , typeCanonicalType
   , typeElementType
+  , typePointeeType
   , typeSizeOf
   , typeSpelling
   , typeKind

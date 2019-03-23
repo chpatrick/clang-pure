@@ -493,6 +493,21 @@ typeElementType t = uderef t $ \tp -> do
     then return Nothing
     else (Just . Type) <$> newLeaf (parent t) (\_ -> return ( etp, free etp ))
 
+typePointeeType :: Type -> Maybe Type
+typePointeeType t = uderef t $ \tp -> do
+  etp <- [C.block| CXType* {
+    CXType type = clang_getPointeeType(*$(CXType *tp));
+
+    if (type.kind == CXType_Invalid) {
+      return NULL;
+    }
+
+    return ALLOC(type);
+    } |]
+  if etp == nullPtr
+    then return Nothing
+    else (Just . Type) <$> newLeaf (parent t) (\_ -> return ( etp, free etp ))
+
 typeKind :: Type -> TypeKind
 typeKind t = uderef t $ fmap parseTypeKind . #peek CXType, kind
 
