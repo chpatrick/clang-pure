@@ -1,5 +1,5 @@
 name:                  clang-pure
-version:               0.2.0.3
+version:               0.2.0.4
 synopsis:              Pure C++ code analysis with libclang
 description:
   Pure C++ code analysis with libclang.
@@ -13,7 +13,7 @@ maintainer:            chpatrick@gmail.com
 copyright:             Copyright 2014 Google Inc. All Rights Reserved.
 category:              Language
 build-type:            Custom
-cabal-version:         >=1.24
+cabal-version:         1.24
 extra-source-files:    cbits/clang-pure-utils.h
 
 custom-setup
