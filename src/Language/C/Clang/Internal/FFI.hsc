@@ -572,6 +572,12 @@ eitherTypeLayoutErrorOrWord64 n = case n of
   #{const CXTypeLayoutError_Dependent} -> Left TypeLayoutErrorDependent
   _ -> Right $ fromIntegral n
 
+boolFromUnsigned :: CUInt -> Bool
+boolFromUnsigned n = case n of
+  0 -> False
+  1 -> True
+  _ -> True {- XXX NO NO NO -}
+
 typeSizeOf :: Type -> Either TypeLayoutError Word64
 typeSizeOf t = uderef t $ \tp ->
   eitherTypeLayoutErrorOrWord64 <$>
@@ -581,6 +587,31 @@ offsetOfField :: Cursor -> Either TypeLayoutError Word64
 offsetOfField c = uderef c $ \cp ->
   eitherTypeLayoutErrorOrWord64 <$>
   [C.exp| long long { clang_Cursor_getOffsetOfField(*$(CXCursor* cp)) } |]
+
+isDefaulted :: Cursor -> Bool
+isDefaulted c = uderef c $ \cp ->
+  boolFromUnsigned <$>
+  [C.exp| unsigned int { clang_CXXMethod_isDefaulted(*$(CXCursor* cp)) } |]
+
+isPureVirtual :: Cursor -> Bool
+isPureVirtual c = uderef c $ \cp ->
+  boolFromUnsigned <$>
+  [C.exp| unsigned int { clang_CXXMethod_isPureVirtual(*$(CXCursor* cp)) } |]
+
+isStatic :: Cursor -> Bool
+isStatic c = uderef c $ \cp ->
+  boolFromUnsigned <$>
+  [C.exp| unsigned int { clang_CXXMethod_isStatic(*$(CXCursor* cp)) } |]
+
+isVirtual :: Cursor -> Bool
+isVirtual c = uderef c $ \cp ->
+  boolFromUnsigned <$>
+  [C.exp| unsigned int { clang_CXXMethod_isVirtual(*$(CXCursor* cp)) } |]
+
+isConst :: Cursor -> Bool
+isConst c = uderef c $ \cp ->
+  boolFromUnsigned <$>
+  [C.exp| unsigned int { clang_CXXMethod_isConst(*$(CXCursor* cp)) } |]
 
 typeSpelling :: Type -> ByteString
 typeSpelling t = uderef t $ \tp ->

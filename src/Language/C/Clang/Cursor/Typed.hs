@@ -33,12 +33,26 @@ module Language.C.Clang.Cursor.Typed
   , TypeLayoutError(..)
   , offsetOfField
 
+  {--
+  , isConvertingConstructor
+  , isCopyConstructor
+  , isDefaultConstructor
+  , isMoveConstructor
+  , isMutable
+  --}
+  , isDefaulted
+  , isPureVirtual
+  , isStatic
+  , isVirtual
+  , isConst
+
   , HasType
   , HasChildren
   , HasExtent
   , HasSpelling
   , CursorKind(..)
   ) where
+
 
 import qualified Data.ByteString as BS
 import           Data.Functor.Contravariant
@@ -102,6 +116,38 @@ cursorSpelling = UT.cursorSpelling . withoutKind
 
 offsetOfField :: CursorK 'FieldDecl -> Either TypeLayoutError Word64
 offsetOfField = UT.offsetOfField . withoutKind
+
+{--
+isConvertingConstructor :: CursorK 'CXXConstructor -> Bool
+isConvertingConstructor = UT.isConvertingConstructor . withoutKind
+
+isCopyConstructor :: CursorK 'CXXConstructor -> Bool
+isCopyConstructor = UT.isCopyConstructor . withoutKind
+
+isDefaultConstructor :: CursorK 'CXXConstructor -> Bool
+isDefaultConstructor = UT.isDefaultConstructor . withoutKind
+
+isMoveConstructor :: CursorK 'CXXConstructor -> Bool
+isMoveConstructor = UT.isMoveConstructor . withoutKind
+
+isMutable :: CursorK 'CXXField -> Bool
+isMutable = UT.isMutable . withoutKind
+--}
+
+isDefaulted :: CursorK 'CXXMethod -> Bool
+isDefaulted = UT.isDefaulted . withoutKind
+
+isPureVirtual :: CursorK 'CXXMethod -> Bool
+isPureVirtual = UT.isPureVirtual . withoutKind
+
+isStatic :: CursorK 'CXXMethod -> Bool
+isStatic = UT.isStatic . withoutKind
+
+isVirtual :: CursorK 'CXXMethod -> Bool
+isVirtual = UT.isVirtual . withoutKind
+
+isConst :: CursorK 'CXXMethod -> Bool
+isConst = UT.isConst . withoutKind
 
 -- instances derived experimentally with the find-classes executable
 instance HasChildren 'ArraySubscriptExpr
