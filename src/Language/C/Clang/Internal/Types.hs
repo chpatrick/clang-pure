@@ -32,6 +32,11 @@ type instance RefOf ClangIndex = CXIndexImpl
 newtype ClangIndex = ClangIndex (Root CXIndexImpl)
   deriving (Parent, Clang)
 
+data ClangIndexOption
+  = ExcludeDeclarationsFromPCH
+  | DisplayDiagnostics
+    deriving (Eq, Ord, Show)
+
 instance Eq ClangIndex where (==) = pointerEq
 
 data CXTranslationUnitImpl

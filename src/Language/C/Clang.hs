@@ -18,7 +18,9 @@ module Language.C.Clang (
   module C,
   -- * Index
   ClangIndex(),
+  ClangIndexOption(..),
   createIndex,
+  createIndexWithOptions,
   -- * Utilities
   Clang(),
   ClangOrd(..)
