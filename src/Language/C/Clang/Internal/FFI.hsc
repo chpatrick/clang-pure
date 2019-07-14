@@ -48,8 +48,15 @@ foreign import ccall "clang_disposeIndex"
   clang_disposeIndex :: Ptr CXIndexImpl -> Finalizer
 
 createIndex :: IO ClangIndex
-createIndex = do
-  idxp <- [C.exp| CXIndex { clang_createIndex(0, 1) } |]
+createIndex = createIndexWithOptions [ DisplayDiagnostics ]
+
+createIndexWithOptions :: [ ClangIndexOption ] -> IO ClangIndex
+createIndexWithOptions opts = do
+  let excludeDecl = fromBool $ ExcludeDeclarationsFromPCH `elem` opts
+      displayDiag = fromBool $ DisplayDiagnostics `elem` opts
+  idxp <- [C.exp| CXIndex {
+    clang_createIndex($(int excludeDecl), $(int displayDiag))
+    } |]
   ClangIndex <$> newRoot idxp (clang_disposeIndex idxp)
 
 foreign import ccall "clang_disposeTranslationUnit"
