@@ -21,8 +21,10 @@ limitations under the License.
 
 module Language.C.Clang.Internal.Types where
 
+import Data.ByteString (ByteString)
 import Data.Singletons.TH
 import Foreign
+import Foreign.C
 
 import Language.C.Clang.Internal.Refs
 
@@ -45,6 +47,26 @@ type instance RefOf TranslationUnit = CXTranslationUnitImpl
 type instance ParentOf TranslationUnit = ClangIndex
 newtype TranslationUnit = TranslationUnitRef (Node ClangIndex CXTranslationUnitImpl)
   deriving (Parent, Child, Clang)
+
+data CXUnsavedFile = CXUnsavedFile
+  { cxUnsavedFileName :: CString
+  , cxUnsavedFileContents :: CString
+  , cxUnsavedFileLength :: CULong
+  }
+
+type UnsavedFile = ( FilePath, ByteString )
+
+data TranslationUnitOption
+  = DetailedPreprocessingRecord
+  | Incomplete
+  | PrecompiledPreamble
+  | CacheCompletionResults
+  | ForSerialization
+  | CXXChainedPCH
+  | SkipFunctionBodies
+  | IncludeBriefCommentsInCodeCompletion
+  | CreatePreambleOnFirstParse
+    deriving (Eq, Ord, Show)
 
 instance Eq TranslationUnit where (==) = pointerEq
 

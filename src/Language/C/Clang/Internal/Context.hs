@@ -36,6 +36,7 @@ clangTypesTable = M.fromList
   , (C.TypeName "CXFile", [t| CXFile |])
   , (C.TypeName "CXType", [t| CXType |])
   , (C.TypeName "CXToken", [t| CXToken |])
+  , (C.Struct "CXUnsavedFile", [t| CXUnsavedFile |])
   ]
 
 clangCtx :: C.Context
