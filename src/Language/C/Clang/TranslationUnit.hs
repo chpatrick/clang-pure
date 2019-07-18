@@ -16,7 +16,10 @@ limitations under the License.
 
 module Language.C.Clang.TranslationUnit
   ( TranslationUnit()
+  , TranslationUnitOption(..)
+  , UnsavedFile
   , parseTranslationUnit
+  , parseTranslationUnitWithOptions
   )
 where
 

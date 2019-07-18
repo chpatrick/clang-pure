@@ -18,11 +18,12 @@ limitations under the License.
 
 module Language.C.Clang.Internal.FFI where
 
+import Data.Bits
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
+import qualified Data.ByteString.Unsafe as BS
 import Control.Exception
 import Control.Monad
-import Data.Foldable
 import Data.Functor.Contravariant
 import Data.IORef
 import qualified Data.Vector.Storable as VS
@@ -81,27 +82,70 @@ parseClangError = \case
 
 instance Exception ClangError
 
+withCXUnsavedFile :: UnsavedFile -> (CXUnsavedFile -> IO a) -> IO a
+withCXUnsavedFile ( path, contents ) f =
+  withCString path $ \cPath ->
+    BS.unsafeUseAsCStringLen contents $ \( cContents, cLength ) ->
+      f $ CXUnsavedFile cPath cContents (fromIntegral cLength)
+
+instance Storable CXUnsavedFile where
+  sizeOf _ = #size struct CXUnsavedFile
+
+  alignment _ = #alignment struct CXUnsavedFile
+
+  peek ptr = do
+    cFileName <- (#peek struct CXUnsavedFile, Filename) ptr
+    cContents <- (#peek struct CXUnsavedFile, Contents) ptr
+    cLength <- (#peek struct CXUnsavedFile, Length) ptr
+    return $ CXUnsavedFile cFileName cContents cLength
+
+  poke ptr (CXUnsavedFile cFileName cContents cLength) = do
+    (#poke struct CXUnsavedFile, Filename) ptr cFileName
+    (#poke struct CXUnsavedFile, Contents) ptr cContents
+    (#poke struct CXUnsavedFile, Length) ptr cLength
+
+toTranslationUnitFlag :: TranslationUnitOption -> CUInt
+toTranslationUnitFlag = \case
+  DetailedPreprocessingRecord -> #{const CXTranslationUnit_DetailedPreprocessingRecord}
+  Incomplete -> #{const CXTranslationUnit_Incomplete}
+  PrecompiledPreamble -> #{const CXTranslationUnit_PrecompiledPreamble}
+  CacheCompletionResults -> #{const CXTranslationUnit_CacheCompletionResults}
+  ForSerialization -> #{const CXTranslationUnit_ForSerialization}
+  CXXChainedPCH -> #{const CXTranslationUnit_CXXChainedPCH}
+  SkipFunctionBodies -> #{const CXTranslationUnit_SkipFunctionBodies}
+  IncludeBriefCommentsInCodeCompletion -> #{const CXTranslationUnit_IncludeBriefCommentsInCodeCompletion}
+  CreatePreambleOnFirstParse -> #{const CXTranslationUnit_CreatePreambleOnFirstParse}
+
 parseTranslationUnit :: ClangIndex -> FilePath -> [ String ] -> IO TranslationUnit
-parseTranslationUnit idx path args = do
+parseTranslationUnit idx path args = parseTranslationUnitWithOptions idx path args [] []
+
+parseTranslationUnitWithOptions
+  :: ClangIndex
+  -> FilePath
+  -> [ String ]
+  -> [ UnsavedFile ]
+  -> [ TranslationUnitOption ]
+  -> IO TranslationUnit
+parseTranslationUnitWithOptions idx path args unsavedFiles opts = do
   tun <- newNode idx $ \idxp ->
-    withCString path $ \cPath -> do
-      ( tup, cres ) <- bracket
-        (traverse newCString args)
-        (traverse_ free) $
-        \cArgList -> do
+    withCString path $ \cPath ->
+      withMany withCString args $ \cArgList ->
+        withMany withCXUnsavedFile unsavedFiles $ \cUnsavedFileList -> do
           let cArgs = VS.fromList cArgList
-          C.withPtr $ \tupp -> [C.exp| int {
+              cUnsavedFiles = VS.fromList cUnsavedFileList
+              cFlags = foldr (.|.) 0 (map toTranslationUnitFlag opts)
+          ( tup, cres ) <- C.withPtr $ \tupp -> [C.exp| int {
             clang_parseTranslationUnit2(
               $(CXIndex idxp),
-              $(char* cPath),
+              $(const char *cPath),
               $vec-ptr:(const char * const * cArgs), $vec-len:cArgs,
-              NULL, 0,
-              0,
+              $vec-ptr:(struct CXUnsavedFile *cUnsavedFiles), $vec-len:cUnsavedFiles,
+              $(unsigned int cFlags),
               $(CXTranslationUnit *tupp))
             } |]
-      let res = parseClangError cres
-      when (res /= Success) $ throwIO res
-      return ( tup, clang_disposeTranslationUnit tup )
+          let res = parseClangError cres
+          when (res /= Success) $ throwIO res
+          return ( tup, clang_disposeTranslationUnit tup )
   return $ TranslationUnitRef tun
 
 translationUnitCursor :: TranslationUnit -> Cursor
