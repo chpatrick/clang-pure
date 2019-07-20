@@ -103,18 +103,6 @@ clangPureConfHook (d, bi) flags = do
 
   let verbosity = fromFlagOrDefault normal (configVerbosity flags)
 
-  let addCSources libBuildInfo =
-        libBuildInfo
-#if !(MIN_VERSION_GLASGOW_HASKELL(8, 2, 1, 0) && MIN_VERSION_inline_c(0, 6, 0))
-          { cSources = -- define the generated c-sources here so that they don't get picked up by sdist
-#if defined(mingw32_HOST_OS) && !(MIN_VERSION_GLASGOW_HASKELL(8, 0, 2, 0))
-              ["srcLanguageCClangInternalFFI.c"] -- work around a bug in hsc2hs
-#else
-              ["src/Language/C/Clang/Internal/FFI.c"]
-#endif
-          }
-#endif
-
   addDirs <- case mbError of
     Right () -> return id
     Left (_ :: SomeException) -> do
@@ -131,7 +119,7 @@ clangPureConfHook (d, bi) flags = do
   let lbi = libBuildInfo lib
   return localBuildInfo
     { localPkgDescr = pd
-      { library = Just lib { libBuildInfo = addDirs $ addCSources lbi }
+      { library = Just lib { libBuildInfo = addDirs lbi }
       }
     }
 
