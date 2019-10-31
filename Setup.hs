@@ -101,17 +101,16 @@ clangPureConfHook (d, bi) flags = do
   -- see if it just works (eg on Nix)
   mbError <- try $ checkForeignDeps pd localBuildInfo normal
 
-  let verbosity = fromFlagOrDefault normal (configVerbosity flags)
-
   addDirs <- case mbError of
     Right () -> return id
     Left (_ :: SomeException) -> do
+      let verbosity = fromFlagOrDefault normal (configVerbosity flags)
       warn verbosity "Couldn't find libclang, attempting to find it with llvm-config or environment variables..."
 
       LLVMPathInfo{..} <- getLLVMPathInfo verbosity
 
       return $ \libBuildInfo -> libBuildInfo
-        { includeDirs = llvmIncludeDir : includeDirs libBuildInfo
+        { ccOptions = ccOptions libBuildInfo ++ [ "-isystem", llvmIncludeDir ]
         , extraLibDirs = llvmLibraryDir : extraLibDirs libBuildInfo
         }
 

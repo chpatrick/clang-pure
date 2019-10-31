@@ -64,7 +64,6 @@ library
   build-tools:         hsc2hs
   default-language:    Haskell2010
   include-dirs:        cbits/
-  includes:            clang-c/Index.h
   cc-options:          -Wall -Werror
   extra-libraries:     clang
   ghc-options:         -Wall
