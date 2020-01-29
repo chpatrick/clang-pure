@@ -27,6 +27,7 @@ module Language.C.Clang.Cursor.Typed
   , cursorDescendants
 
   , cursorExtent
+  , cursorLocation
 
   , cursorSpelling
 
@@ -94,6 +95,9 @@ class HasExtent (kind :: CursorKind)
 
 cursorExtent :: HasExtent kind => CursorK kind -> SourceRange
 cursorExtent = fromJust . UT.cursorExtent . withoutKind
+
+cursorLocation :: CursorK kind -> SourceLocation
+cursorLocation = UT.cursorLocation . withoutKind
 
 class HasSpelling (kind :: CursorKind)
 
