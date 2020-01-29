@@ -165,15 +165,17 @@ matrix:
 before_install:
 - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then
     brew update;
-    brew install llvm@3.9;
-    export CLANG_PURE_LLVM_LIB_DIR=/usr/local/opt/llvm@3.9/lib;
-    export CLANG_PURE_LLVM_INCLUDE_DIR=/usr/local/opt/llvm@3.9/include;
+    brew install llvm@9;
+    export CLANG_PURE_LLVM_LIB_DIR=/usr/local/opt/llvm@9/lib;
+    export CLANG_PURE_LLVM_INCLUDE_DIR=/usr/local/opt/llvm@9/include;
     fi
 - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then
-    sudo apt-get -qq update;
-    sudo apt-get install -y libclang-3.9-dev;
-    export CLANG_PURE_LLVM_LIB_DIR=/usr/lib/llvm-3.9/lib;
-    export CLANG_PURE_LLVM_INCLUDE_DIR=/usr/lib/llvm-3.9/include;
+    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+    sudo add-apt-repository "deb http://apt.llvm.org/xenial/   llvm-toolchain-xenial-9  main"
+    sudo apt-get update
+    sudo apt-get install -y libclang-9-dev
+    export CLANG_PURE_LLVM_LIB_DIR=/usr/lib/llvm-9/lib;
+    export CLANG_PURE_LLVM_INCLUDE_DIR=/usr/lib/llvm-9/include;
     fi
 # Using compiler above sets CC to an invalid value, so unset it
 - unset CC
