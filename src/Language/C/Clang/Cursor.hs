@@ -31,6 +31,7 @@ module Language.C.Clang.Cursor
   , cursorDescendants
   , cursorSpelling
   , cursorExtent
+  , cursorLocation
   , cursorUSR
   , cursorReferenced
   , cursorType

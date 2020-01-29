@@ -213,6 +213,15 @@ cursorExtent c = uderef c $ \cp -> do
         return ( srp, free srp )
       return $ Just $ SourceRange srn
 
+cursorLocation :: Cursor -> SourceLocation
+cursorLocation c = uderef c $ \cp -> do
+  slp <- [C.exp| CXSourceLocation* { ALLOC(
+    clang_getCursorLocation(*$(CXCursor *cp))
+    )} |]
+  sln <- newLeaf (cursorTranslationUnit c) $ \_ ->
+    return ( slp, free slp )
+  return $ SourceLocation sln
+
 cursorUSR :: Cursor -> ByteString
 cursorUSR c = uderef c $ \cp -> withCXString $ \cxsp ->
   [C.block| void {
