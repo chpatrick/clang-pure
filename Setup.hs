@@ -113,6 +113,8 @@ clangPureConfHook (d, bi) flags = do
       return $ \libBuildInfo -> libBuildInfo
         { includeDirs = llvmIncludeDir : includeDirs libBuildInfo
         , extraLibDirs = llvmLibraryDir : extraLibDirs libBuildInfo
+          -- Set the RPATH so the Clang libs can be found later.
+        , ldOptions = ("-Wl,-rpath," ++ llvmLibraryDir) : ldOptions libBuildInfo
         }
 
   let Just lib = library pd
