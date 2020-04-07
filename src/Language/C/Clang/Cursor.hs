@@ -39,6 +39,11 @@ module Language.C.Clang.Cursor
 
   , TypeLayoutError(..)
   , offsetOfField
+  , isDefaulted
+  , isPureVirtual
+  , isStatic
+  , isVirtual
+  , isConst
   , CursorKind(..)
   )
 where
