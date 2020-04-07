@@ -3,38 +3,38 @@
 ## Install prerequisites
 
 You'll need a recent version of [LLVM/Clang][llvm]. clang-pure has been tested
-with LLVM version [3.8.1][llvm381].
+with at least LLVM version 9, but newer versions should work.
 
-### Linux
+### Debian/Ubuntu
 
-Install the LLVM version [3.8.1][llvm381] package or install from your distro's
-official repositories, if the package version is recent enough. For example, on
-Ubuntu:
+Follow [these instructions](https://apt.llvm.org/) to install LLVM version 9 (or later).
 
+You may need to set the following environment variables:
 ```bash
-$ sudo apt-get install libclang-dev
+export CLANG_PURE_LLVM_LIB_DIR=/usr/lib/llvm-9/lib;
+export CLANG_PURE_LLVM_INCLUDE_DIR=/usr/lib/llvm-9/include;
 ```
-
-Note that the pre-built versions of LLVM packaged for Centos are typically too
-old and so you'll need to install LLVM version [3.8.1][llvm381] or build it
-from source.
-
 ### Windows
 
-Install the LLVM version [3.8.1][llvm381] package and install to the default
+Install the LLVM 9 (or newer) [package](https://releases.llvm.org/download.html) and install to the default
 location, which is typically `%PROGRAMFILES%\LLVM`.
 
 ### Mac OS X
 
-Build LLVM version [3.8.1][llvm381] from source or install using
+Build LLVM version 9 (or newer) from source or install using
 [Homebrew][brew] (easiest):
 
 ```bash
-$ brew tap homebrew/versions
-$ brew install llvm38
+$ brew install llvm@9
 ```
 
 ## Building
+
+### Nix
+
+Run `nix-shell` in the root directory to get a development shell or `nix-build` to build a Nix package.
+
+### Stack
 
 Build using [Stack][stack] from the repository root:
 
