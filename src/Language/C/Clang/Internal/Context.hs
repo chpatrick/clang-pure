@@ -17,7 +17,6 @@ limitations under the License.
 module Language.C.Clang.Internal.Context where
 
 import qualified Data.Map as M
-import Data.Monoid ((<>))
 import qualified Language.C.Inline as C
 import qualified Language.C.Inline.Context as C
 import qualified Language.C.Types as C

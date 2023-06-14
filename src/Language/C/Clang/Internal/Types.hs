@@ -18,6 +18,7 @@ limitations under the License.
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE StandaloneKindSignatures #-}
 
 module Language.C.Clang.Internal.Types where
 

@@ -49,7 +49,7 @@ import           Data.Word
 import           Lens.Micro.Contra
 
 import qualified Language.C.Clang.Cursor as UT
-import           Language.C.Clang.Cursor ( cursorKind, Cursor, CursorKind(..) )
+import           Language.C.Clang.Cursor ( cursorKind )
 import           Language.C.Clang.Location
 import           Language.C.Clang.Internal.Types
 
